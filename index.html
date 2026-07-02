@@ -23,25 +23,25 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .brand svg{display:block}
 .brand .tag{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--red);text-transform:uppercase;border-left:1px solid var(--black);padding-left:14px}
 .nav{display:flex;gap:8px}
-.nav button{background:none;border:1px solid var(--black);color:var(--black);padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:.15s}
+.nav button{background:none;border:1px solid var(--black);color:var(--black);padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:.15s;border-radius:12px}
 .nav button:hover{background:var(--black);color:#fff}
 .nav button.active{background:var(--red);border-color:var(--red);color:#fff}
 main{max-width:1280px;margin:0 auto;padding:28px 32px 80px}
 .filters{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:28px}
 .filter label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px}
-select,input[type=date]{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;min-width:150px;cursor:pointer}
-select:focus,input:focus{outline:none;border-color:var(--red)}
-.seg{display:flex;border:1px solid var(--black)}
+select,input[type=date],input[type=text],textarea{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;min-width:150px;cursor:pointer;border-radius:12px}
+select:focus,input:focus,textarea:focus{outline:none;border-color:var(--red)}
+.seg{display:flex;border:1px solid var(--black);border-radius:12px;overflow:hidden}
 .seg button{background:none;border:none;color:var(--black);padding:10px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
 .seg button.active{background:var(--red);color:#fff}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px}
-.kpi{background:var(--card);border:1px solid var(--border);padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi{background:var(--card);border:1px solid var(--border);padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04);border-radius:14px}
 .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
 .kpi .v{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1.1;margin-bottom:4px}
 .kpi .l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
 .kpi.rate .v{color:var(--red)}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.panel{background:var(--card);border:1px solid var(--border);padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.panel{background:var(--card);border:1px solid var(--border);padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.04);border-radius:14px}
 .panel.full{grid-column:1/-1}
 .panel h3{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
 .panel h3 em{color:var(--red);font-style:normal}
@@ -59,7 +59,18 @@ tr:hover td{background:rgba(254,11,0,.04)}
 .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .problems{display:grid;gap:14px}
-.prob{background:var(--card);border:1px solid var(--border);padding:22px;border-left:3px solid var(--red);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.prob{background:var(--card);border:1px solid var(--border);padding:22px;border-left:3px solid var(--red);box-shadow:0 1px 2px rgba(0,0,0,.04);border-radius:14px;position:relative}
+.prob .del{position:absolute;top:14px;right:14px;background:none;border:1px solid var(--border);color:var(--grey);border-radius:8px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.prob .del:hover{border-color:var(--red);color:var(--red)}
+.mission-head{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin:18px 0 4px;display:flex;align-items:center;gap:10px}
+.mission-head::before{content:'→';color:var(--red)}
+.mission-head .count{font-size:11px;color:var(--grey);font-weight:700}
+.pform{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pform textarea{grid-column:1/-1;min-height:64px;resize:vertical;cursor:text}
+.pform input{cursor:text}
+.btn-add{grid-column:1/-1;justify-self:start;background:var(--red);border:none;color:#fff;padding:12px 24px;font-family:inherit;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;border-radius:12px}
+.btn-add:hover{background:#d90a00}
+.note{font-size:12px;color:var(--grey);grid-column:1/-1}
 .prob .meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
 .prob .meta .tag{border:1px solid var(--border);padding:3px 8px}
 .prob .meta .tag.status{border-color:var(--red);color:var(--red)}
@@ -67,7 +78,7 @@ tr:hover td{background:rgba(254,11,0,.04)}
 .prob .block{margin-top:10px}
 .prob .block b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:4px}
 .prob .block p{color:#333;font-size:14px;line-height:1.55;white-space:pre-wrap}
-.howto{background:#fff;border:1px dashed var(--black);padding:22px;color:var(--grey);font-size:14px;line-height:1.7;margin-top:14px}
+.howto{background:#fff;border:1px dashed var(--black);padding:22px;color:var(--grey);font-size:14px;line-height:1.7;margin-top:14px;border-radius:14px}
 .howto code{background:var(--bg);border:1px solid var(--border);padding:2px 6px;color:var(--red);font-size:13px}
 footer{text-align:center;padding:24px;color:var(--grey);font-size:12px;border-top:1px solid var(--border)}
 footer a{color:var(--red);text-decoration:none;font-weight:700}
@@ -136,19 +147,32 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
       </div>
 
       <div class="grid">
+        <div class="panel full"><h3>→ Détail par personne</h3><div style="overflow-x:auto"><table id="t-person">
+          <thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
+          <tbody></tbody></table></div></div>
         <div class="panel full"><h3>→ Évolution de l'activité <em>/</em> appels · décrochés · RDV</h3><div class="chartbox"><canvas id="c-evo"></canvas></div></div>
         <div class="panel full"><h3>→ Taux de décroché &amp; taux de RDV <em>(%)</em></h3><div class="chartbox"><canvas id="c-rates"></canvas></div></div>
         <div class="panel"><h3>→ Par personne</h3><div class="chartbox"><canvas id="c-person"></canvas></div></div>
         <div class="panel"><h3>→ Par mission</h3><div class="chartbox"><canvas id="c-mission"></canvas></div></div>
-        <div class="panel full"><h3>→ Détail par personne</h3><div style="overflow-x:auto"><table id="t-person">
-          <thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
-          <tbody></tbody></table></div></div>
       </div>
     </div>
   </section>
 
   <!-- VUE PROBLEMES -->
   <section id="view-probs" style="display:none">
+    <div class="panel" style="margin-bottom:20px">
+      <h3>→ Ajouter une problématique</h3>
+      <div class="pform">
+        <input type="text" id="p-mission" list="missions-list" placeholder="Mission (ex : GROF, DCUBE…)">
+        <datalist id="missions-list"></datalist>
+        <input type="text" id="p-statut" placeholder="Statut (ex : En cours, Résolu)">
+        <textarea id="p-prob" placeholder="Problème rencontré…"></textarea>
+        <textarea id="p-sol" placeholder="Solution…"></textarea>
+        <textarea id="p-marche" placeholder="Marche à suivre (étapes concrètes)…"></textarea>
+        <button class="btn-add" onclick="addProblem()">→ Ajouter</button>
+        <div class="note">Enregistré dans ce navigateur. Tu peux aussi alimenter un onglet « Problèmes » dans le Google Sheet : les deux sources s'affichent ensemble.</div>
+      </div>
+    </div>
     <div id="probs-list" class="problems"></div>
   </section>
 </main>
@@ -412,35 +436,69 @@ async function loadProblems(){
 function findKey(o,words){
   return Object.keys(o).find(k=>words.some(w=>k.toLowerCase().includes(w)));
 }
-function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// Problématiques saisies sur le site (stockées dans ce navigateur)
+function localProblems(){try{return JSON.parse(localStorage.getItem('grof-problems')||'[]')}catch(e){return[]}}
+function saveLocalProblems(l){localStorage.setItem('grof-problems',JSON.stringify(l))}
+function addProblem(){
+  const v=id=>document.getElementById(id).value.trim();
+  if(!v('p-prob')){document.getElementById('p-prob').focus();return;}
+  const list=localProblems();
+  list.push({id:Date.now(), date:new Date().toLocaleDateString('fr-FR'),
+    mission:(v('p-mission')||'Général').toUpperCase(), statut:v('p-statut'),
+    prob:v('p-prob'), sol:v('p-sol'), marche:v('p-marche'), local:true});
+  saveLocalProblems(list);
+  ['p-mission','p-statut','p-prob','p-sol','p-marche'].forEach(i=>document.getElementById(i).value='');
+  renderProblems();
+}
+function delProblem(id){
+  saveLocalProblems(localProblems().filter(p=>p.id!==id));
+  renderProblems();
+}
+
+// Normalise les lignes de l'onglet « Problèmes » du Sheet
+function sheetProblems(){
+  if(!problems||!problems.items.length) return [];
+  return problems.items.map(o=>{
+    const g=w=>{const k=findKey(o,w);return k?o[k]:'';};
+    return {date:g(['date']), mission:(g(['mission'])||'Général').toUpperCase(),
+      statut:g(['statut','status','état','etat']), pers:g(['personne','sdr','qui']),
+      prob:g(['probl']), sol:g(['solution']), marche:g(['marche','suivre','étape','etape','action']), local:false};
+  }).filter(p=>p.prob||p.sol);
+}
+
+function probCard(p){
+  let h='<div class="prob"><div class="meta">';
+  if(p.date) h+=`<span class="tag">${esc(p.date)}</span>`;
+  if(p.pers) h+=`<span class="tag">${esc(p.pers)}</span>`;
+  if(p.statut) h+=`<span class="tag status">${esc(p.statut)}</span>`;
+  h+=`<span class="tag">${p.local?'Saisi sur le site':'Google Sheet'}</span>`;
+  h+='</div>';
+  if(p.local) h+=`<button class="del" onclick="delProblem(${p.id})">✕ Supprimer</button>`;
+  h+=`<h4>${esc(p.prob||'Problématique')}</h4>`;
+  if(p.sol) h+=`<div class="block"><b>→ Solution</b><p>${esc(p.sol)}</p></div>`;
+  if(p.marche) h+=`<div class="block"><b>→ Marche à suivre</b><p>${esc(p.marche)}</p></div>`;
+  return h+'</div>';
+}
+
 function renderProblems(){
   const box=document.getElementById('probs-list');
-  if(!problems||!problems.items.length){
+  // datalist missions
+  document.getElementById('missions-list').innerHTML=[...allMissions].sort().map(m=>`<option value="${esc(m)}">`).join('');
+  const all=[...sheetProblems(),...localProblems()];
+  if(!all.length){
     box.innerHTML=`<div class="msg"><div class="big">Aucune problématique pour l'instant</div>
-      Pour en ajouter, crée un onglet <b style="color:var(--black)">« Problèmes »</b> dans le Google Sheet.</div>
-      <div class="howto">→ <b style="color:var(--black)">Colonnes attendues (1ère ligne)</b> :
-      <code>Date</code> <code>Mission</code> <code>Problème</code> <code>Solution</code> <code>Marche à suivre</code> <code>Statut</code><br>
-      Chaque ligne suivante = une problématique. Le site les affichera automatiquement au rechargement.</div>`;
+      Ajoute-en une avec le formulaire ci-dessus — elle sera classée par mission.</div>`;
     return;
   }
-  box.innerHTML=problems.items.map(o=>{
-    const kProb=findKey(o,['probl']), kSol=findKey(o,['solution']), kMarche=findKey(o,['marche','suivre','étape','etape','action']);
-    const kDate=findKey(o,['date']), kMission=findKey(o,['mission']), kStatut=findKey(o,['statut','status','état','etat']), kPers=findKey(o,['personne','sdr','qui']);
-    let h='<div class="prob"><div class="meta">';
-    if(kDate&&o[kDate]) h+=`<span class="tag">${esc(o[kDate])}</span>`;
-    if(kMission&&o[kMission]) h+=`<span class="tag">${esc(o[kMission])}</span>`;
-    if(kPers&&o[kPers]) h+=`<span class="tag">${esc(o[kPers])}</span>`;
-    if(kStatut&&o[kStatut]) h+=`<span class="tag status">${esc(o[kStatut])}</span>`;
-    h+='</div>';
-    h+=`<h4>${esc(kProb?o[kProb]:'Problématique')}</h4>`;
-    if(kSol&&o[kSol]) h+=`<div class="block"><b>→ Solution</b><p>${esc(o[kSol])}</p></div>`;
-    if(kMarche&&o[kMarche]) h+=`<div class="block"><b>→ Marche à suivre</b><p>${esc(o[kMarche])}</p></div>`;
-    Object.keys(o).forEach(key=>{
-      if(![kProb,kSol,kMarche,kDate,kMission,kStatut,kPers].includes(key)&&o[key])
-        h+=`<div class="block"><b>→ ${esc(key)}</b><p>${esc(o[key])}</p></div>`;
-    });
-    return h+'</div>';
-  }).join('');
+  // regroupées par mission
+  const byM={};
+  all.forEach(p=>{(byM[p.mission]=byM[p.mission]||[]).push(p);});
+  box.innerHTML=Object.keys(byM).sort().map(m=>
+    `<div class="mission-head">${esc(m)} <span class="count">${byM[m].length} problématique${byM[m].length>1?'s':''}</span></div>`
+    + byM[m].map(probCard).join('')
+  ).join('');
 }
 
 function switchView(v){
