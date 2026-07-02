@@ -272,11 +272,12 @@ function clearPreset(){
   document.querySelectorAll('#f-preset button').forEach(b=>b.classList.remove('active'));
 }
 
+function localDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function filtered(){
   const p=document.getElementById('f-person').value;
   const m=document.getElementById('f-mission').value;
-  const from=document.getElementById('f-from').value?new Date(document.getElementById('f-from').value):null;
-  const to=document.getElementById('f-to').value?new Date(document.getElementById('f-to').value):null;
+  const from=document.getElementById('f-from').value?localDate(document.getElementById('f-from').value):null;
+  const to=document.getElementById('f-to').value?localDate(document.getElementById('f-to').value):null;
   if(to) to.setHours(23,59,59);
   return rows.filter(r=>(!p||r.person===p)&&(!m||r.mission===m)&&(!from||r.date>=from)&&(!to||r.date<=to));
 }
