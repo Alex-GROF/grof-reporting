@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GROF — Reporting SDR</title>
+<meta name="theme-color" content="#FE0B00">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --red:#FE0B00;
+  --black:#0A0A0A;
+  --bg:#FAFAFA;
+  --card:#FFFFFF;
+  --border:#E6E6E6;
+  --grey:#6B6B6B;
+  --green:#1FA95C;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--black);font-family:"HelveticaNowDisplay","Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--black);position:sticky;top:0;background:rgba(250,250,250,.94);backdrop-filter:blur(8px);z-index:50;flex-wrap:wrap;gap:12px}
+.brand{display:flex;align-items:center;gap:14px}
+.brand svg{display:block}
+.brand .tag{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--red);text-transform:uppercase;border-left:1px solid var(--black);padding-left:14px}
+.nav{display:flex;gap:8px}
+.nav button{background:none;border:1px solid var(--black);color:var(--black);padding:10px 18px;font-family:inherit;font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:.15s}
+.nav button:hover{background:var(--black);color:#fff}
+.nav button.active{background:var(--red);border-color:var(--red);color:#fff}
+main{max-width:1280px;margin:0 auto;padding:28px 32px 80px}
+.filters{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:28px}
+.filter label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px}
+select,input[type=date]{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;min-width:150px;cursor:pointer}
+select:focus,input:focus{outline:none;border-color:var(--red)}
+.seg{display:flex;border:1px solid var(--black)}
+.seg button{background:none;border:none;color:var(--black);padding:10px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
+.seg button.active{background:var(--red);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px}
+.kpi{background:var(--card);border:1px solid var(--border);padding:18px 20px;position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.kpi .v{font-size:30px;font-weight:900;letter-spacing:-1px;line-height:1.1;margin-bottom:4px}
+.kpi .l{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
+.kpi.rate .v{color:var(--red)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.panel{background:var(--card);border:1px solid var(--border);padding:22px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.panel.full{grid-column:1/-1}
+.panel h3{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px}
+.panel h3 em{color:var(--red);font-style:normal}
+.chartbox{position:relative;height:300px}
+.panel.full .chartbox{height:340px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--grey);padding:10px 12px;border-bottom:2px solid var(--black)}
+td{padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600}
+td.num,th.num{text-align:right}
+tr:hover td{background:rgba(254,11,0,.04)}
+.rate-badge{color:var(--red);font-weight:900}
+.dim td{color:#B5B5B5}
+.msg{text-align:center;padding:60px 20px;color:var(--grey)}
+.msg .big{font-size:22px;font-weight:900;color:var(--black);margin-bottom:10px}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;margin:0 auto 16px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.problems{display:grid;gap:14px}
+.prob{background:var(--card);border:1px solid var(--border);padding:22px;border-left:3px solid var(--red);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.prob .meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
+.prob .meta .tag{border:1px solid var(--border);padding:3px 8px}
+.prob .meta .tag.status{border-color:var(--red);color:var(--red)}
+.prob h4{font-size:17px;font-weight:900;margin-bottom:12px}
+.prob .block{margin-top:10px}
+.prob .block b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:4px}
+.prob .block p{color:#333;font-size:14px;line-height:1.55;white-space:pre-wrap}
+.howto{background:#fff;border:1px dashed var(--black);padding:22px;color:var(--grey);font-size:14px;line-height:1.7;margin-top:14px}
+.howto code{background:var(--bg);border:1px solid var(--border);padding:2px 6px;color:var(--red);font-size:13px}
+footer{text-align:center;padding:24px;color:var(--grey);font-size:12px;border-top:1px solid var(--border)}
+footer a{color:var(--red);text-decoration:none;font-weight:700}
+.updated{font-size:12px;color:var(--grey)}
+.updated b{color:var(--black)}
+@media(max-width:900px){.grid{grid-template-columns:1fr}main{padding:20px 16px 60px}header{padding:16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg role="img" aria-label="GROF" width="127" height="20" viewBox="0 0 127 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#0A0A0A" d="M126.25 6.25V0H99.375C97.6486 0 96.25 1.39861 96.25 3.125V20H105V13.75H126.25V7.5H105V6.25H126.25Z"/>
+      <path fill="#0A0A0A" d="M91.875 0H65.625C63.8986 0 62.5 1.39861 62.5 3.125V16.875C62.5 18.6014 63.8986 20 65.625 20H91.875C93.6014 20 95 18.6014 95 16.875V3.125C95 1.39861 93.6014 0 91.875 0ZM86.25 13.125C86.25 13.4708 85.9708 13.75 85.625 13.75H71.875C71.5292 13.75 71.25 13.4708 71.25 13.125V6.875C71.25 6.52917 71.5292 6.25 71.875 6.25H85.625C85.9708 6.25 86.25 6.52917 86.25 6.875V13.125Z"/>
+      <path fill="#0A0A0A" d="M56.25 13.75H58.125C59.8514 13.75 61.25 12.3514 61.25 10.625V3.125C61.25 1.39861 59.8514 0 58.125 0H31.25C31.25 3.45139 34.0486 6.25 37.5 6.25H51.875C52.2208 6.25 52.5 6.52917 52.5 6.875C52.5 7.22083 52.2208 7.5 51.875 7.5H37.5C34.0486 7.5 31.25 10.2986 31.25 13.75V20H40V13.75H46.25L52.5 20H62.5L56.25 13.75Z"/>
+      <path fill="#0A0A0A" d="M23.75 7.5H18.125V10.625C18.125 12.3514 19.5236 13.75 21.25 13.75H8.75V6.25H23.75C27.2014 6.25 30 3.45139 30 0H3.125C1.39861 0 0 1.39861 0 3.125V16.875C0 18.6014 1.39861 20 3.125 20H30V13.75C30 10.2986 27.2014 7.5 23.75 7.5Z"/>
+    </svg>
+    <span class="tag">Reporting SDR</span>
+  </div>
+  <nav class="nav">
+    <button class="active" data-view="perf" onclick="switchView('perf')">→ Performance</button>
+    <button data-view="probs" onclick="switchView('probs')">→ Problèmes &amp; Solutions</button>
+  </nav>
+  <div class="updated" id="updated"></div>
+</header>
+
+<main>
+  <!-- VUE PERFORMANCE -->
+  <section id="view-perf">
+    <div class="filters">
+      <div class="filter"><label>Personne</label><select id="f-person" onchange="render()"></select></div>
+      <div class="filter"><label>Mission</label><select id="f-mission" onchange="render()"></select></div>
+      <div class="filter"><label>Granularité</label>
+        <div class="seg" id="f-gran">
+          <button data-g="day" onclick="setGran('day')">Jour</button>
+          <button data-g="week" onclick="setGran('week')">Semaine</button>
+          <button data-g="month" class="active" onclick="setGran('month')">Mois</button>
+          <button data-g="year" onclick="setGran('year')">Année</button>
+        </div>
+      </div>
+      <div class="filter"><label>Période</label>
+        <div class="seg" id="f-preset">
+          <button data-p="today" onclick="setPreset('today')">Aujourd'hui</button>
+          <button data-p="week" onclick="setPreset('week')">Cette semaine</button>
+          <button data-p="month" onclick="setPreset('month')">Ce mois-ci</button>
+          <button data-p="all" class="active" onclick="setPreset('all')">Tout</button>
+        </div>
+      </div>
+      <div class="filter"><label>Du</label><input type="date" id="f-from" onchange="clearPreset();render()"></div>
+      <div class="filter"><label>Au</label><input type="date" id="f-to" onchange="clearPreset();render()"></div>
+    </div>
+
+    <div id="loading" class="msg"><div class="spinner"></div>Chargement des données…</div>
+
+    <div id="dash" style="display:none">
+      <div class="kpis">
+        <div class="kpi"><div class="v" id="k-calls">–</div><div class="l">Appels</div></div>
+        <div class="kpi"><div class="v" id="k-conn">–</div><div class="l">Décrochés</div></div>
+        <div class="kpi rate"><div class="v" id="k-pickup">–</div><div class="l">Taux de décroché</div></div>
+        <div class="kpi"><div class="v" id="k-rdv">–</div><div class="l">RDV pris</div></div>
+        <div class="kpi rate"><div class="v" id="k-rdvrate">–</div><div class="l">Taux de RDV</div></div>
+        <div class="kpi"><div class="v" id="k-dur">–</div><div class="l">Durée totale</div></div>
+        <div class="kpi"><div class="v" id="k-noshow">–</div><div class="l">No show</div></div>
+        <div class="kpi"><div class="v" id="k-reprog">–</div><div class="l">RDV reprogrammés</div></div>
+      </div>
+
+      <div class="grid">
+        <div class="panel full"><h3>→ Évolution de l'activité <em>/</em> appels · décrochés · RDV</h3><div class="chartbox"><canvas id="c-evo"></canvas></div></div>
+        <div class="panel full"><h3>→ Taux de décroché &amp; taux de RDV <em>(%)</em></h3><div class="chartbox"><canvas id="c-rates"></canvas></div></div>
+        <div class="panel"><h3>→ Par personne</h3><div class="chartbox"><canvas id="c-person"></canvas></div></div>
+        <div class="panel"><h3>→ Par mission</h3><div class="chartbox"><canvas id="c-mission"></canvas></div></div>
+        <div class="panel full"><h3>→ Détail par personne</h3><div style="overflow-x:auto"><table id="t-person">
+          <thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
+          <tbody></tbody></table></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VUE PROBLEMES -->
+  <section id="view-probs" style="display:none">
+    <div id="probs-list" class="problems"></div>
+  </section>
+</main>
+
+<footer>© <span id="year"></span> GROF — Reporting SDR · Données : <a href="https://docs.google.com/spreadsheets/d/1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE/edit" target="_blank">Google Sheet ↗</a></footer>
+
+<script>
+const SHEET_ID = '1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE';
+const PEOPLE = ['Matteo','Alix','Luca','Jennifer','Alexis','Idriss'];
+const PROBLEM_SHEETS = ['Problèmes','Problemes','Problématiques','Problematiques'];
+const RED='#FE0B00', BLACK='#0A0A0A', GREY='#6B6B6B', BORDER='#E6E6E6', GREEN='#1FA95C';
+const PALETTE=['#FE0B00','#0A0A0A','#F39C12','#1FA95C','#3498DB','#9B59B6','#E67E22','#1ABC9C'];
+
+let rows=[];      // {person, mission, date(Date), dur, calls, conn, rdv, noshow, reprog}
+let allMissions=new Set();
+let gran='month';
+let problems=null;
+
+document.getElementById('year').textContent=new Date().getFullYear();
+
+function csvUrl(sheetName){
+  return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+}
+
+// --- CSV parser (gère guillemets/virgules) ---
+function parseCSV(text){
+  const out=[]; let row=[], cur='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+      else cur+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){row.push(cur);cur='';}
+      else if(c==='\n'){row.push(cur);out.push(row);row=[];cur='';}
+      else if(c!=='\r') cur+=c;
+    }
+  }
+  if(cur!==''||row.length){row.push(cur);out.push(row);}
+  return out;
+}
+
+function parseDate(s){
+  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((s||'').trim());
+  if(!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+function num(s){
+  if(s==null) return 0;
+  s=String(s).trim().replace(/\s/g,'').replace(',','.');
+  const n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+
+async function loadAll(){
+  const results=await Promise.allSettled(PEOPLE.map(p=>fetch(csvUrl(p)).then(r=>{if(!r.ok)throw 0;return r.text()})));
+  rows=[];
+  results.forEach((res,i)=>{
+    if(res.status!=='fulfilled') return;
+    const person=PEOPLE[i];
+    let lastMission='';
+    for(const r of parseCSV(res.value)){
+      // missions du bloc mensuel (colonne J), même sans données quotidiennes
+      const side=(r[9]||'').trim();
+      if(side) allMissions.add(side.toUpperCase());
+      const d=parseDate(r[1]);
+      if(!d) continue;
+      const mission=(r[0]||'').trim().toUpperCase();
+      if(mission){lastMission=mission;allMissions.add(mission);}
+      const hasData=(r[2]||'').trim()!==''||(r[3]||'').trim()!==''||(r[4]||'').trim()!==''||(r[5]||'').trim()!=='';
+      if(!hasData) continue;
+      rows.push({person, mission: mission||lastMission||'Non renseignée', date:d,
+        dur:num(r[2]), calls:num(r[3]), conn:num(r[4]), rdv:num(r[5]), noshow:num(r[6]), reprog:num(r[7])});
+    }
+  });
+  rows.sort((a,b)=>a.date-b.date);
+  initFilters();
+  document.getElementById('loading').style.display='none';
+  document.getElementById('dash').style.display='block';
+  document.getElementById('updated').innerHTML='Mis à jour <b>'+new Date().toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'})+'</b>';
+  render();
+}
+
+function initFilters(){
+  const pSel=document.getElementById('f-person');
+  pSel.innerHTML='<option value="">Toute l\'équipe</option>'+PEOPLE.map(p=>`<option>${p}</option>`).join('');
+  const missions=[...new Set([...allMissions,...rows.map(r=>r.mission)])].sort();
+  const mSel=document.getElementById('f-mission');
+  mSel.innerHTML='<option value="">Toutes les missions</option>'+missions.map(m=>`<option>${m}</option>`).join('');
+  if(rows.length){
+    const min=rows[0].date, max=rows[rows.length-1].date;
+    document.getElementById('f-from').value=iso(min);
+    document.getElementById('f-to').value=iso(max);
+  }
+}
+function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+function setGran(g){
+  gran=g;
+  document.querySelectorAll('#f-gran button').forEach(b=>b.classList.toggle('active',b.dataset.g===g));
+  render();
+}
+
+function setPreset(p){
+  const now=new Date(); now.setHours(0,0,0,0);
+  let from=new Date(now), to=new Date(now);
+  if(p==='week'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day);}
+  else if(p==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
+  else if(p==='all'){
+    if(rows.length){from=rows[0].date; to=rows[rows.length-1].date;}
+  }
+  document.getElementById('f-from').value=iso(from);
+  document.getElementById('f-to').value=iso(to);
+  document.querySelectorAll('#f-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  gran=(p==='all')?'month':'day';
+  document.querySelectorAll('#f-gran button').forEach(b=>b.classList.toggle('active',b.dataset.g===gran));
+  render();
+}
+function clearPreset(){
+  document.querySelectorAll('#f-preset button').forEach(b=>b.classList.remove('active'));
+}
+
+function filtered(){
+  const p=document.getElementById('f-person').value;
+  const m=document.getElementById('f-mission').value;
+  const from=document.getElementById('f-from').value?new Date(document.getElementById('f-from').value):null;
+  const to=document.getElementById('f-to').value?new Date(document.getElementById('f-to').value):null;
+  if(to) to.setHours(23,59,59);
+  return rows.filter(r=>(!p||r.person===p)&&(!m||r.mission===m)&&(!from||r.date>=from)&&(!to||r.date<=to));
+}
+
+function bucketKey(d){
+  if(gran==='day') return iso(d);
+  if(gran==='week'){
+    const t=new Date(d); const day=(t.getDay()+6)%7; t.setDate(t.getDate()-day);
+    return iso(t);
+  }
+  if(gran==='month') return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  return String(d.getFullYear());
+}
+function bucketLabel(k){
+  if(gran==='day'){const[y,m,d]=k.split('-');return d+'/'+m;}
+  if(gran==='week'){const[y,m,d]=k.split('-');return 'Sem. '+d+'/'+m;}
+  if(gran==='month'){const[y,m]=k.split('-');return ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'][+m-1]+' '+y;}
+  return k;
+}
+
+function agg(list){
+  return list.reduce((a,r)=>{a.calls+=r.calls;a.conn+=r.conn;a.rdv+=r.rdv;a.dur+=r.dur;a.noshow+=r.noshow;a.reprog+=r.reprog;return a;},
+    {calls:0,conn:0,rdv:0,dur:0,noshow:0,reprog:0});
+}
+const pct=(a,b)=>b>0?(100*a/b):0;
+const fmtPct=v=>v.toFixed(1).replace('.',',')+' %';
+const fmtDur=min=>min>=60?Math.floor(min/60)+'h'+String(Math.round(min%60)).padStart(2,'0'):Math.round(min)+' min';
+const fmtN=n=>n.toLocaleString('fr-FR');
+
+let charts={};
+function mkChart(id,cfg){
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),cfg);
+}
+Chart.defaults.font.family="'HelveticaNowDisplay','Helvetica Neue',Helvetica,Arial,sans-serif";
+Chart.defaults.color=GREY;
+Chart.defaults.borderColor=BORDER;
+
+function render(){
+  const list=filtered();
+  const tot=agg(list);
+
+  // KPIs
+  k('k-calls',fmtN(tot.calls)); k('k-conn',fmtN(tot.conn));
+  k('k-pickup',fmtPct(pct(tot.conn,tot.calls)));
+  k('k-rdv',fmtN(tot.rdv)); k('k-rdvrate',fmtPct(pct(tot.rdv,tot.conn)));
+  k('k-dur',fmtDur(tot.dur)); k('k-noshow',fmtN(tot.noshow)); k('k-reprog',fmtN(tot.reprog));
+
+  // Séries temporelles
+  const buckets={};
+  list.forEach(r=>{const key=bucketKey(r.date);(buckets[key]=buckets[key]||[]).push(r);});
+  const keys=Object.keys(buckets).sort();
+  const labels=keys.map(bucketLabel);
+  const series=keys.map(key=>agg(buckets[key]));
+
+  mkChart('c-evo',{type:'bar',data:{labels,datasets:[
+    {label:'Appels',data:series.map(s=>s.calls),backgroundColor:'rgba(10,10,10,.15)',borderColor:'rgba(10,10,10,.4)',borderWidth:1},
+    {label:'Décrochés',data:series.map(s=>s.conn),backgroundColor:'rgba(254,11,0,.8)'},
+    {label:'RDV pris',data:series.map(s=>s.rdv),type:'line',borderColor:GREEN,backgroundColor:GREEN,tension:.3,pointRadius:4,yAxisID:'y2'}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{y:{beginAtZero:true,grid:{color:BORDER}},y2:{beginAtZero:true,position:'right',grid:{display:false},ticks:{precision:0}},x:{grid:{display:false}}},
+    plugins:{legend:{labels:{usePointStyle:true,boxWidth:8}}}}});
+
+  mkChart('c-rates',{type:'line',data:{labels,datasets:[
+    {label:'Taux de décroché',data:series.map(s=>pct(s.conn,s.calls)),borderColor:RED,backgroundColor:'rgba(254,11,0,.08)',fill:true,tension:.3,pointRadius:4},
+    {label:'Taux de RDV (RDV/décrochés)',data:series.map(s=>pct(s.rdv,s.conn)),borderColor:BLACK,tension:.3,pointRadius:4,borderDash:[6,4]}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    scales:{y:{beginAtZero:true,grid:{color:BORDER},ticks:{callback:v=>v+' %'}},x:{grid:{display:false}}},
+    plugins:{legend:{labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label:c=>c.dataset.label+' : '+fmtPct(c.parsed.y)}}}}});
+
+  // Par personne — toujours les 6 SDR (0 si pas de données)
+  const pFilter=document.getElementById('f-person').value;
+  const pNames=pFilter?[pFilter]:PEOPLE.slice();
+  const byP={};
+  pNames.forEach(n=>byP[n]=[]);
+  list.forEach(r=>{if(byP[r.person])byP[r.person].push(r);});
+  const pAgg=pNames.map(n=>agg(byP[n]));
+  mkChart('c-person',{type:'bar',data:{labels:pNames,datasets:[
+    {label:'Appels',data:pAgg.map(a=>a.calls),backgroundColor:'rgba(10,10,10,.15)'},
+    {label:'Décrochés',data:pAgg.map(a=>a.conn),backgroundColor:'rgba(254,11,0,.8)'},
+    {label:'RDV pris',data:pAgg.map(a=>a.rdv),backgroundColor:GREEN}
+  ]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+    scales:{x:{beginAtZero:true,grid:{color:BORDER}},y:{grid:{display:false},ticks:{color:BLACK,font:{weight:'700'}}}},
+    plugins:{legend:{labels:{usePointStyle:true,boxWidth:8}}}}});
+
+  // Par mission
+  const byM={};
+  list.forEach(r=>{(byM[r.mission]=byM[r.mission]||[]).push(r);});
+  const mNames=Object.keys(byM);
+  mkChart('c-mission',{type:'doughnut',data:{labels:mNames.length?mNames:['Aucune donnée'],datasets:[{
+    data:mNames.length?mNames.map(n=>agg(byM[n]).calls):[1],
+    backgroundColor:mNames.length?mNames.map((_,i)=>PALETTE[i%PALETTE.length]):[BORDER],
+    borderColor:'#FFFFFF',borderWidth:3
+  }]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8}},
+    tooltip:{callbacks:{label:c=>c.label+' : '+fmtN(c.parsed)+' appels'}}}}});
+
+  // Tableau — toujours les 6 SDR
+  const tb=document.querySelector('#t-person tbody');
+  tb.innerHTML=pNames.map((n,i)=>{const a=pAgg[i];const dim=a.calls===0?' class="dim"':'';
+    return `<tr${dim}><td>${n}</td>
+    <td class="num">${fmtN(a.calls)}</td><td class="num">${fmtN(a.conn)}</td>
+    <td class="num rate-badge">${a.calls?fmtPct(pct(a.conn,a.calls)):'–'}</td>
+    <td class="num">${fmtN(a.rdv)}</td><td class="num rate-badge">${a.conn?fmtPct(pct(a.rdv,a.conn)):'–'}</td>
+    <td class="num">${fmtN(a.noshow)}</td><td class="num">${fmtN(a.reprog)}</td>
+    <td class="num">${fmtN(Math.round(a.dur))}</td></tr>`;}).join('');
+}
+function k(id,v){document.getElementById(id).textContent=v}
+
+// --- Problèmes & solutions ---
+async function loadProblems(){
+  const box=document.getElementById('probs-list');
+  box.innerHTML='<div class="msg"><div class="spinner"></div>Chargement…</div>';
+  for(const name of PROBLEM_SHEETS){
+    try{
+      const r=await fetch(csvUrl(name));
+      if(!r.ok) continue;
+      const text=await r.text();
+      if(/<html|<!DOCTYPE/i.test(text)) continue;
+      const data=parseCSV(text).filter(row=>row.some(c=>c.trim()!==''));
+      if(data.length<1) continue;
+      const headers=data[0].map(h=>h.trim());
+      const items=data.slice(1).filter(row=>row.some(c=>c.trim()!=='')).map(row=>{
+        const o={}; headers.forEach((h,i)=>{if(h)o[h]=(row[i]||'').trim();}); return o;
+      });
+      problems={headers,items};
+      break;
+    }catch(e){}
+  }
+  renderProblems();
+}
+function findKey(o,words){
+  return Object.keys(o).find(k=>words.some(w=>k.toLowerCase().includes(w)));
+}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function renderProblems(){
+  const box=document.getElementById('probs-list');
+  if(!problems||!problems.items.length){
+    box.innerHTML=`<div class="msg"><div class="big">Aucune problématique pour l'instant</div>
+      Pour en ajouter, crée un onglet <b style="color:var(--black)">« Problèmes »</b> dans le Google Sheet.</div>
+      <div class="howto">→ <b style="color:var(--black)">Colonnes attendues (1ère ligne)</b> :
+      <code>Date</code> <code>Mission</code> <code>Problème</code> <code>Solution</code> <code>Marche à suivre</code> <code>Statut</code><br>
+      Chaque ligne suivante = une problématique. Le site les affichera automatiquement au rechargement.</div>`;
+    return;
+  }
+  box.innerHTML=problems.items.map(o=>{
+    const kProb=findKey(o,['probl']), kSol=findKey(o,['solution']), kMarche=findKey(o,['marche','suivre','étape','etape','action']);
+    const kDate=findKey(o,['date']), kMission=findKey(o,['mission']), kStatut=findKey(o,['statut','status','état','etat']), kPers=findKey(o,['personne','sdr','qui']);
+    let h='<div class="prob"><div class="meta">';
+    if(kDate&&o[kDate]) h+=`<span class="tag">${esc(o[kDate])}</span>`;
+    if(kMission&&o[kMission]) h+=`<span class="tag">${esc(o[kMission])}</span>`;
+    if(kPers&&o[kPers]) h+=`<span class="tag">${esc(o[kPers])}</span>`;
+    if(kStatut&&o[kStatut]) h+=`<span class="tag status">${esc(o[kStatut])}</span>`;
+    h+='</div>';
+    h+=`<h4>${esc(kProb?o[kProb]:'Problématique')}</h4>`;
+    if(kSol&&o[kSol]) h+=`<div class="block"><b>→ Solution</b><p>${esc(o[kSol])}</p></div>`;
+    if(kMarche&&o[kMarche]) h+=`<div class="block"><b>→ Marche à suivre</b><p>${esc(o[kMarche])}</p></div>`;
+    Object.keys(o).forEach(key=>{
+      if(![kProb,kSol,kMarche,kDate,kMission,kStatut,kPers].includes(key)&&o[key])
+        h+=`<div class="block"><b>→ ${esc(key)}</b><p>${esc(o[key])}</p></div>`;
+    });
+    return h+'</div>';
+  }).join('');
+}
+
+function switchView(v){
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  document.getElementById('view-perf').style.display=v==='perf'?'block':'none';
+  document.getElementById('view-probs').style.display=v==='probs'?'block':'none';
+  if(v==='probs'&&problems===null) loadProblems();
+}
+
+loadAll();
+</script>
+</body>
+</html>
