@@ -78,6 +78,14 @@ tr:hover td{background:rgba(254,11,0,.04)}
 .hbar .fill.neutral{background:#B5B5B5}
 .hbar .n{text-align:right;font-weight:900}
 .sc-warn{font-size:12px;color:var(--grey);margin:-14px 0 20px}
+.range-wrap{position:relative}
+.range-btn{background:var(--card);border:1px solid var(--black);border-radius:12px;padding:10px 14px;font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;min-width:220px;text-align:left}
+.range-btn::after{content:'▾';float:right;color:var(--grey)}
+.range-pop{display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1px solid var(--black);border-radius:14px;padding:14px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:250px}
+.range-pop.open{display:grid;gap:8px}
+.range-pop label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
+.obj-track{height:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg)}
+.obj-fill{height:100%}
 @media(max-width:700px){.hbar{grid-template-columns:120px 1fr 48px}}
 .prob .meta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
 .prob .meta .tag{border:1px solid var(--border);padding:3px 8px}
@@ -131,14 +139,21 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
       </div>
       <div class="filter"><label>Période</label>
         <div class="seg" id="f-preset">
+          <button data-p="yesterday" onclick="setPreset('yesterday')">Hier</button>
           <button data-p="today" onclick="setPreset('today')">Aujourd'hui</button>
           <button data-p="week" onclick="setPreset('week')">Cette semaine</button>
           <button data-p="month" onclick="setPreset('month')">Ce mois-ci</button>
           <button data-p="all" class="active" onclick="setPreset('all')">Tout</button>
         </div>
       </div>
-      <div class="filter"><label>Du</label><input type="date" id="f-from" onchange="clearPreset();render()"></div>
-      <div class="filter"><label>Au</label><input type="date" id="f-to" onchange="clearPreset();render()"></div>
+      <div class="filter range-wrap"><label>Dates</label>
+        <button class="range-btn" id="f-range" onclick="toggleRange('f')">…</button>
+        <div class="range-pop" id="f-pop">
+          <label>Du</label><input type="date" id="f-from">
+          <label>Au</label><input type="date" id="f-to">
+          <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="applyRange('f')">→ Appliquer</button>
+        </div>
+      </div>
     </div>
 
     <div id="loading" class="msg"><div class="spinner"></div>Chargement des données…</div>
@@ -159,6 +174,9 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
         <div class="panel full"><h3>→ Détail par personne</h3><div style="overflow-x:auto"><table id="t-person">
           <thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
           <tbody></tbody></table></div></div>
+        <div class="panel full"><h3>→ Objectifs de RDV par mission <em>(objectif mensuel · RDV pris sur la période sélectionnée)</em></h3><div style="overflow-x:auto"><table id="t-obj">
+          <thead><tr><th>Mission</th><th class="num">Objectif / mois</th><th class="num">RDV pris</th><th class="num">Avancement</th><th style="width:38%">Progression</th></tr></thead>
+          <tbody></tbody></table></div></div>
         <div class="panel full"><h3>→ Évolution de l'activité <em>/</em> appels · décrochés · RDV</h3><div class="chartbox"><canvas id="c-evo"></canvas></div></div>
         <div class="panel full"><h3>→ Taux de décroché &amp; taux de RDV <em>(%)</em></h3><div class="chartbox"><canvas id="c-rates"></canvas></div></div>
         <div class="panel"><h3>→ Par personne</h3><div class="chartbox"><canvas id="c-person"></canvas></div></div>
@@ -171,8 +189,14 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
   <section id="view-skip" style="display:none">
     <div class="filters">
       <div class="filter"><label>Mission</label><select id="sc-mission"></select></div>
-      <div class="filter"><label>Date de début</label><input type="date" id="sc-from"></div>
-      <div class="filter"><label>Date de fin</label><input type="date" id="sc-to"></div>
+      <div class="filter range-wrap"><label>Période</label>
+        <button class="range-btn" id="sc-range" onclick="toggleRange('sc')">…</button>
+        <div class="range-pop" id="sc-pop">
+          <label>Du</label><input type="date" id="sc-from">
+          <label>Au</label><input type="date" id="sc-to">
+          <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="applyRange('sc')">→ Appliquer</button>
+        </div>
+      </div>
       <div class="filter"><label>&nbsp;</label><button class="btn-add" style="padding:10px 24px" onclick="loadSkip()">→ Afficher</button></div>
     </div>
     <div id="sc-content"></div>
@@ -206,6 +230,8 @@ const SHEET_ID = '1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKpABW40iDncw1litKxJrsxGkuOtMbqCyfOHzyASb6nG30g-mJoY0XMj5bC8BvIJeP/exec';
 const PEOPLE = ['Matteo','Alix','Luca','Jennifer','Alexis','Idriss'];
 const PROBLEM_SHEETS = ['Problèmes','Problemes','Problématiques','Problematiques'];
+const OBJECTIFS_RDV = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':10}; // objectifs mensuels
+const canonMission = m => m==='WECHOOZ' ? 'WEECHOOZ' : m;
 const RED='#FE0B00', BLACK='#0A0A0A', GREY='#6B6B6B', BORDER='#E6E6E6', GREEN='#1FA95C';
 const PALETTE=['#FE0B00','#0A0A0A','#F39C12','#1FA95C','#3498DB','#9B59B6','#E67E22','#1ABC9C'];
 
@@ -261,10 +287,10 @@ async function loadAll(){
     for(const r of parseCSV(res.value)){
       // missions du bloc mensuel (colonne J), même sans données quotidiennes
       const side=(r[9]||'').trim();
-      if(side) allMissions.add(side.toUpperCase());
+      if(side) allMissions.add(canonMission(side.toUpperCase()));
       const d=parseDate(r[1]);
       if(!d) continue;
-      const mission=(r[0]||'').trim().toUpperCase();
+      const mission=canonMission((r[0]||'').trim().toUpperCase());
       if(mission){lastMission=mission;allMissions.add(mission);}
       const hasData=(r[2]||'').trim()!==''||(r[3]||'').trim()!==''||(r[4]||'').trim()!==''||(r[5]||'').trim()!=='';
       if(!hasData) continue;
@@ -291,6 +317,7 @@ function initFilters(){
     document.getElementById('f-from').value=iso(min);
     document.getElementById('f-to').value=iso(max);
   }
+  updateRangeLabel('f');
 }
 function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
@@ -303,13 +330,15 @@ function setGran(g){
 function setPreset(p){
   const now=new Date(); now.setHours(0,0,0,0);
   let from=new Date(now), to=new Date(now);
-  if(p==='week'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day);}
+  if(p==='yesterday'){from.setDate(from.getDate()-1); to=new Date(from);}
+  else if(p==='week'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day);}
   else if(p==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
   else if(p==='all'){
     if(rows.length){from=rows[0].date; to=rows[rows.length-1].date;}
   }
   document.getElementById('f-from').value=iso(from);
   document.getElementById('f-to').value=iso(to);
+  updateRangeLabel('f');
   document.querySelectorAll('#f-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
   gran=(p==='all')?'month':'day';
   document.querySelectorAll('#f-gran button').forEach(b=>b.classList.toggle('active',b.dataset.g===gran));
@@ -318,6 +347,26 @@ function setPreset(p){
 function clearPreset(){
   document.querySelectorAll('#f-preset button').forEach(b=>b.classList.remove('active'));
 }
+
+// --- sélecteur de période unique ---
+function fmtRangeLabel(f,t){const p=s=>{if(!s)return '…';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y;};return p(f)+'  →  '+p(t);}
+function updateRangeLabel(prefix){
+  const el=document.getElementById(prefix+'-range');
+  if(el) el.textContent=fmtRangeLabel(document.getElementById(prefix+'-from').value,document.getElementById(prefix+'-to').value);
+}
+function toggleRange(prefix){
+  document.querySelectorAll('.range-pop').forEach(p=>{if(p.id!==prefix+'-pop')p.classList.remove('open');});
+  document.getElementById(prefix+'-pop').classList.toggle('open');
+}
+function applyRange(prefix){
+  document.getElementById(prefix+'-pop').classList.remove('open');
+  updateRangeLabel(prefix);
+  if(prefix==='f'){clearPreset();render();}
+  else{loadSkip();}
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.range-wrap')) document.querySelectorAll('.range-pop').forEach(p=>p.classList.remove('open'));
+});
 
 function localDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function filtered(){
@@ -431,6 +480,20 @@ function render(){
     <td class="num">${fmtN(a.rdv)}</td><td class="num rate-badge">${a.conn?fmtPct(pct(a.rdv,a.conn)):'–'}</td>
     <td class="num">${fmtN(a.noshow)}</td><td class="num">${fmtN(a.reprog)}</td>
     <td class="num">${fmtN(Math.round(a.dur))}</td></tr>`;}).join('');
+
+  // Objectifs de RDV par mission
+  const rdvByM={};
+  list.forEach(r=>{rdvByM[r.mission]=(rdvByM[r.mission]||0)+r.rdv;});
+  const tbo=document.querySelector('#t-obj tbody');
+  tbo.innerHTML=Object.keys(OBJECTIFS_RDV).map(m=>{
+    const done=rdvByM[m]||0, obj=OBJECTIFS_RDV[m];
+    const pctObj=100*done/obj, w=Math.min(100,pctObj);
+    const color=done>=obj?'var(--green)':(pctObj>=50?'#F39C12':'var(--red)');
+    return `<tr${done===0?' class="dim"':''}><td>${m}</td>
+      <td class="num">${obj}</td><td class="num" style="font-weight:900">${fmtN(done)}</td>
+      <td class="num rate-badge" style="color:${color}">${fmtPct(pctObj)}</td>
+      <td><div class="obj-track"><div class="obj-fill" style="width:${w}%;background:${color}"></div></div></td></tr>`;
+  }).join('');
 }
 function k(id,v){document.getElementById(id).textContent=v}
 
@@ -587,6 +650,7 @@ async function initSkip(){
   const now=new Date();
   document.getElementById('sc-from').value=iso(new Date(now.getFullYear(),now.getMonth(),1));
   document.getElementById('sc-to').value=iso(now);
+  updateRangeLabel('sc');
   const box=document.getElementById('sc-content');
   box.innerHTML='<div class="msg"><div class="spinner"></div>Chargement des missions SkipCall…</div>';
   try{
