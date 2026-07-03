@@ -6,6 +6,8 @@
 <title>GROF — Reporting SDR</title>
 <meta name="theme-color" content="#FE0B00">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{
   --red:#FE0B00;
@@ -29,7 +31,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 main{max-width:1280px;margin:0 auto;padding:28px 32px 80px}
 .filters{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-bottom:28px}
 .filter label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px}
-select,input[type=date],input[type=text],textarea{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;min-width:150px;cursor:pointer;border-radius:12px}
+select,input[type=date],input[type=week],input[type=month],input[type=text],textarea{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 14px;font-family:inherit;font-size:14px;font-weight:600;min-width:150px;cursor:pointer;border-radius:12px}
 select:focus,input:focus,textarea:focus{outline:none;border-color:var(--red)}
 .seg{display:flex;border:1px solid var(--black);border-radius:12px;overflow:hidden}
 .seg button{background:none;border:none;color:var(--black);padding:10px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;transition:.15s}
@@ -152,6 +154,20 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
           <label>Du</label><input type="date" id="f-from">
           <label>Au</label><input type="date" id="f-to">
           <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="applyRange('f')">→ Appliquer</button>
+        </div>
+      </div>
+      <div class="filter range-wrap"><label>&nbsp;</label>
+        <button class="range-btn" style="min-width:auto;background:var(--black);color:#fff;border-color:var(--black)" onclick="toggleRange('pdf')">→ Export PDF</button>
+        <div class="range-pop" id="pdf-pop">
+          <label>Mission</label><select id="pdf-mission"></select>
+          <label>Période</label>
+          <div class="seg">
+            <button id="pdf-week-btn" class="active" onclick="setPdfType('week')">Semaine</button>
+            <button id="pdf-month-btn" onclick="setPdfType('month')">Mois</button>
+          </div>
+          <input type="week" id="pdf-week">
+          <input type="month" id="pdf-month" style="display:none">
+          <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="exportPDF()">→ Générer le PDF</button>
         </div>
       </div>
     </div>
@@ -318,6 +334,11 @@ function initFilters(){
     document.getElementById('f-to').value=iso(max);
   }
   updateRangeLabel('f');
+  // export PDF : missions + période par défaut
+  document.getElementById('pdf-mission').innerHTML='<option value="">Toutes les missions</option>'+missions.map(m=>`<option>${m}</option>`).join('');
+  const now=new Date();
+  document.getElementById('pdf-week').value=isoWeekStr(now);
+  document.getElementById('pdf-month').value=iso(now).slice(0,7);
 }
 function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
@@ -367,6 +388,100 @@ function applyRange(prefix){
 document.addEventListener('click',e=>{
   if(!e.target.closest('.range-wrap')) document.querySelectorAll('.range-pop').forEach(p=>p.classList.remove('open'));
 });
+
+// --- Export PDF ---
+let pdfType='week';
+function isoWeekStr(d){
+  const t=new Date(d); t.setHours(0,0,0,0);
+  t.setDate(t.getDate()+3-((t.getDay()+6)%7));
+  const w1=new Date(t.getFullYear(),0,4);
+  const wn=1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+  return t.getFullYear()+'-W'+String(wn).padStart(2,'0');
+}
+function weekRange(w){
+  const[y,wk]=w.split('-W').map(Number);
+  const jan4=new Date(y,0,4);
+  const monday=new Date(jan4); monday.setDate(jan4.getDate()-((jan4.getDay()+6)%7)+(wk-1)*7);
+  const sunday=new Date(monday); sunday.setDate(monday.getDate()+6);
+  return[monday,sunday];
+}
+function monthRange(m){const[y,mo]=m.split('-').map(Number);return[new Date(y,mo-1,1),new Date(y,mo,0)];}
+function setPdfType(t){
+  pdfType=t;
+  document.getElementById('pdf-week').style.display=t==='week'?'block':'none';
+  document.getElementById('pdf-month').style.display=t==='month'?'block':'none';
+  document.getElementById('pdf-week-btn').classList.toggle('active',t==='week');
+  document.getElementById('pdf-month-btn').classList.toggle('active',t==='month');
+}
+function exportPDF(){
+  const mission=document.getElementById('pdf-mission').value;
+  let from,to,periodLabel,periodSlug;
+  if(pdfType==='week'){
+    const w=document.getElementById('pdf-week').value;
+    if(!w){alert('Choisis une semaine');return;}
+    [from,to]=weekRange(w); periodSlug=w;
+    periodLabel='Semaine du '+from.toLocaleDateString('fr-FR')+' au '+to.toLocaleDateString('fr-FR');
+  }else{
+    const m=document.getElementById('pdf-month').value;
+    if(!m){alert('Choisis un mois');return;}
+    [from,to]=monthRange(m); periodSlug=m;
+    const lbl=from.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    periodLabel='Mois de '+lbl.charAt(0).toUpperCase()+lbl.slice(1);
+  }
+  to.setHours(23,59,59);
+  const list=rows.filter(r=>(!mission||r.mission===mission)&&r.date>=from&&r.date<=to);
+  if(!list.length){alert('Aucune donnée pour cette mission sur cette période.');return;}
+  const tot=agg(list);
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  // bandeau GROF
+  doc.setFillColor(254,11,0); doc.rect(0,0,210,24,'F');
+  doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text('GROF - REPORTING SDR',14,11);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text((mission||'Toutes les missions')+'  ·  '+periodLabel,14,18);
+  doc.setTextColor(10,10,10);
+  // synthèse
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Synthèse',14,34);
+  doc.autoTable({startY:38,
+    head:[['Appels','Décrochés','Taux décroché','RDV pris','Taux RDV','Durée (min)','No show','Reprog.']],
+    body:[[fmtN(tot.calls),fmtN(tot.conn),fmtPct(pct(tot.conn,tot.calls)),fmtN(tot.rdv),fmtPct(pct(tot.rdv,tot.conn)),fmtN(Math.round(tot.dur)),fmtN(tot.noshow),fmtN(tot.reprog)]],
+    theme:'grid',headStyles:{fillColor:[10,10,10]},styles:{halign:'center',font:'helvetica'}});
+  let y=doc.lastAutoTable.finalY+9;
+  // objectif RDV
+  if(mission&&OBJECTIFS_RDV[mission]){
+    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(254,11,0);
+    doc.text('Objectif RDV '+mission+' : '+tot.rdv+' / '+OBJECTIFS_RDV[mission]+' par mois ('+fmtPct(100*tot.rdv/OBJECTIFS_RDV[mission])+')',14,y);
+    doc.setTextColor(10,10,10); y+=9;
+  }
+  // par personne
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Détail par personne',14,y);
+  const byP={}; PEOPLE.forEach(n=>byP[n]=[]); list.forEach(r=>{if(byP[r.person])byP[r.person].push(r);});
+  doc.autoTable({startY:y+4,
+    head:[['Personne','Appels','Décrochés','Taux décroché','RDV','Taux RDV','No show','Reprog.','Durée (min)']],
+    body:PEOPLE.map(n=>{const a=agg(byP[n]);
+      return[n,fmtN(a.calls),fmtN(a.conn),a.calls?fmtPct(pct(a.conn,a.calls)):'-',fmtN(a.rdv),a.conn?fmtPct(pct(a.rdv,a.conn)):'-',fmtN(a.noshow),fmtN(a.reprog),fmtN(Math.round(a.dur))];}),
+    theme:'grid',headStyles:{fillColor:[254,11,0]},styles:{halign:'center'},columnStyles:{0:{halign:'left',fontStyle:'bold'}}});
+  y=doc.lastAutoTable.finalY+9;
+  // détail par jour
+  const byD={}; list.forEach(r=>{const k=iso(r.date);(byD[k]=byD[k]||[]).push(r);});
+  const dayKeys=Object.keys(byD).sort();
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Détail par jour',14,y);
+  doc.autoTable({startY:y+4,
+    head:[['Date','Appels','Décrochés','Taux décroché','RDV','Taux RDV','Durée (min)']],
+    body:dayKeys.map(k=>{const a=agg(byD[k]);const[yy,mm,dd]=k.split('-');
+      return[dd+'/'+mm+'/'+yy,fmtN(a.calls),fmtN(a.conn),fmtPct(pct(a.conn,a.calls)),fmtN(a.rdv),fmtPct(pct(a.rdv,a.conn)),fmtN(Math.round(a.dur))];}),
+    theme:'striped',headStyles:{fillColor:[10,10,10]},styles:{halign:'center'}});
+  // pied de page
+  const pages=doc.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica','normal');
+    doc.text('Généré le '+new Date().toLocaleString('fr-FR')+' · GROF Reporting SDR',14,290);
+    doc.text('Page '+i+'/'+pages,196,290,{align:'right'});
+  }
+  doc.save('grof-reporting_'+(mission||'toutes-missions').toLowerCase()+'_'+periodSlug+'.pdf');
+  document.getElementById('pdf-pop').classList.remove('open');
+}
 
 function localDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function filtered(){
