@@ -214,6 +214,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
         </div>
       </div>
       <div class="filter"><label>&nbsp;</label><button class="btn-add" style="padding:10px 24px" onclick="loadSkip()">→ Afficher</button></div>
+      <div class="filter"><label>&nbsp;</label><button class="range-btn" style="min-width:auto;background:var(--black);color:#fff;border-color:var(--black)" onclick="exportSkipPDF()">→ Export PDF</button></div>
     </div>
     <div id="sc-content"></div>
   </section>
@@ -448,18 +449,40 @@ function exportPDF(){
     body:[[fmtN(tot.calls),fmtN(tot.conn),fmtPct(pct(tot.conn,tot.calls)),fmtN(tot.rdv),fmtPct(pct(tot.rdv,tot.conn)),fmtN(Math.round(tot.dur)),fmtN(tot.noshow),fmtN(tot.reprog)]],
     theme:'grid',headStyles:{fillColor:[10,10,10]},styles:{halign:'center',font:'helvetica'}});
   let y=doc.lastAutoTable.finalY+9;
-  // objectif RDV
-  if(mission&&OBJECTIFS_RDV[mission]){
-    doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(254,11,0);
-    doc.text('Objectif RDV '+mission+' : '+tot.rdv+' / '+OBJECTIFS_RDV[mission]+' par mois ('+fmtPct(100*tot.rdv/OBJECTIFS_RDV[mission])+')',14,y);
-    doc.setTextColor(10,10,10); y+=9;
+  // objectifs de RDV du mois par mission (réalisé sur le mois complet contenant la période)
+  const mStart=new Date(from.getFullYear(),from.getMonth(),1);
+  const mEnd=new Date(from.getFullYear(),from.getMonth()+1,0); mEnd.setHours(23,59,59);
+  const rdvMois={};
+  rows.forEach(r=>{if(r.date>=mStart&&r.date<=mEnd)rdvMois[r.mission]=(rdvMois[r.mission]||0)+r.rdv;});
+  const objMissions=(mission&&OBJECTIFS_RDV[mission])?[mission]:(mission?[]:Object.keys(OBJECTIFS_RDV));
+  if(objMissions.length){
+    const moisLbl=mStart.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    doc.setFontSize(13); doc.setFont('helvetica','bold');
+    doc.text('Objectifs de RDV du mois ('+moisLbl+')',14,y);
+    doc.autoTable({startY:y+4,
+      head:[['Mission','Objectif / mois','RDV pris (mois)','Reste à prendre','Avancement']],
+      body:objMissions.map(m=>{
+        const done=rdvMois[m]||0, obj=OBJECTIFS_RDV[m];
+        return[m,String(obj),fmtN(done),String(Math.max(0,obj-done)),fmtPct(100*done/obj)+(done>=obj?'  ✓':'')];
+      }),
+      theme:'grid',headStyles:{fillColor:[254,11,0]},styles:{halign:'center'},
+      columnStyles:{0:{halign:'left',fontStyle:'bold'}},
+      didParseCell:function(data){
+        if(data.section==='body'&&data.column.index===4){
+          const m=objMissions[data.row.index], done=rdvMois[m]||0, obj=OBJECTIFS_RDV[m];
+          data.cell.styles.fontStyle='bold';
+          data.cell.styles.textColor=done>=obj?[31,169,92]:(100*done/obj>=50?[243,156,18]:[254,11,0]);
+        }
+      }});
+    y=doc.lastAutoTable.finalY+9;
   }
-  // par personne
+  // par personne — uniquement celles qui ont travaillé la mission sur la période
   doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Détail par personne',14,y);
   const byP={}; PEOPLE.forEach(n=>byP[n]=[]); list.forEach(r=>{if(byP[r.person])byP[r.person].push(r);});
+  const actives=PEOPLE.filter(n=>byP[n].length>0);
   doc.autoTable({startY:y+4,
     head:[['Personne','Appels','Décrochés','Taux décroché','RDV','Taux RDV','No show','Reprog.','Durée (min)']],
-    body:PEOPLE.map(n=>{const a=agg(byP[n]);
+    body:actives.map(n=>{const a=agg(byP[n]);
       return[n,fmtN(a.calls),fmtN(a.conn),a.calls?fmtPct(pct(a.conn,a.calls)):'-',fmtN(a.rdv),a.conn?fmtPct(pct(a.rdv,a.conn)):'-',fmtN(a.noshow),fmtN(a.reprog),fmtN(Math.round(a.dur))];}),
     theme:'grid',headStyles:{fillColor:[254,11,0]},styles:{halign:'center'},columnStyles:{0:{halign:'left',fontStyle:'bold'}}});
   y=doc.lastAutoTable.finalY+9;
@@ -723,6 +746,8 @@ function switchView(v){
 
 // --- SkipCall (via proxy Apps Script, la clé API reste côté serveur) ---
 let scSequences=null;
+let scLast=null;
+const SC_RDV_RE=/rendez[\s-]?vous\s+pris|^rdv\s+pris$/i;
 const scCache={};
 const SC_MISSION_PATTERNS=[['DCUBE',/DCUBE/],['GROF',/GROF/],['HARVEN',/HARVEN/],['SPECTRUM',/SPECTRUM/],
   ['WEECHOOZ',/WEECHOOZ|WECHOOZ/],['MOGADOR',/MOGADOR/],['KAIROS',/KAIROS/],['REVIT',/REVIT/],
@@ -817,7 +842,7 @@ async function loadSkip(){
         agg.nonCalled+=st.nonCalledCount||0;
         (t.data||[]).forEach(x=>{const o=agg.tags[x.label]=agg.tags[x.label]||{count:0,success:!!x.isSuccess};o.count+=x.count;});
         (st.data||[]).forEach(x=>{agg.statuses[x.status]=(agg.statuses[x.status]||0)+x.count;});
-        if(seq){const rdv=(t.data||[]).filter(x=>x.isSuccess).reduce((a,x)=>a+x.count,0);
+        if(seq){const rdv=(t.data||[]).filter(x=>SC_RDV_RE.test(x.label)).reduce((a,x)=>a+x.count,0);
           agg.perSeq.push({name:seq.name,contacts:seq.contacts,calls:d.callCount||0,dur:d.totalDurationInSeconds||0,rdv});}
       };
       if(!mission){
@@ -836,13 +861,14 @@ async function loadSkip(){
       agg.capNote=capNote;
       scCache[cacheKey]=agg;
     }
-    const rdvTotal=Object.values(agg.tags).filter(t=>t.success).reduce((a,t)=>a+t.count,0);
+    const rdvTotal=Object.entries(agg.tags).filter(([l])=>SC_RDV_RE.test(l)).reduce((a,[,o])=>a+o.count,0);
+    scLast={mission,from,to,agg,rdvTotal};
     const tagEntries=Object.entries(agg.tags).map(([label,o])=>({label,count:o.count,cls:o.success?'success':''})).sort((a,b)=>b.count-a.count);
     const stEntries=Object.entries(agg.statuses).map(([s,c])=>({label:SC_STATUS_FR[s]||s,count:c,cls:(s==='CONNECTED'||s==='COMPLETED')?'success':(s==='NO_ANSWER'||s==='VOICEMAIL'||s==='BUSY'||s==='MISSED_CALL')?'neutral':''})).sort((a,b)=>b.count-a.count);
     let h=agg.capNote||'';
     h+=`<div class="kpis">
       <div class="kpi"><div class="v">${fmtN(agg.calls)}</div><div class="l">Appels</div></div>
-      <div class="kpi rate"><div class="v">${fmtN(rdvTotal)}</div><div class="l">Tags succès (RDV)</div></div>
+      <div class="kpi rate"><div class="v">${fmtN(rdvTotal)}</div><div class="l">Tag « RDV pris »</div></div>
       <div class="kpi"><div class="v">${fmtSec(agg.totalDur)}</div><div class="l">Durée totale</div></div>
       <div class="kpi"><div class="v">${agg.calls?fmtSec(agg.totalDur/agg.calls):'–'}</div><div class="l">Durée moyenne / appel</div></div>
       <div class="kpi"><div class="v">${fmtN(agg.nonCalled)}</div><div class="l">Contacts non appelés</div></div>
@@ -856,7 +882,7 @@ async function loadSkip(){
         <td class="num">${fmtN(s.calls)}</td><td class="num rate-badge">${fmtN(s.rdv)}</td>
         <td class="num">${fmtSec(s.dur)}</td></tr>`).join('');
       h+=`<div class="panel full"><h3>→ Détail par séquence</h3><div style="overflow-x:auto"><table>
-        <thead><tr><th>Séquence</th><th class="num">Contacts</th><th class="num">Appels</th><th class="num">Tags succès</th><th class="num">Durée</th></tr></thead>
+        <thead><tr><th>Séquence</th><th class="num">Contacts</th><th class="num">Appels</th><th class="num">RDV pris</th><th class="num">Durée</th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>`;
     }
     h+='</div>';
@@ -864,6 +890,59 @@ async function loadSkip(){
   }catch(e){
     box.innerHTML='<div class="msg"><div class="big">Erreur SkipCall</div>'+esc(e.message)+'</div>';
   }
+}
+
+// Export PDF des stats SkipCall affichées
+function exportSkipPDF(){
+  if(!scLast){alert('Affiche d\'abord des stats SkipCall (bouton → Afficher), puis exporte.');return;}
+  const {mission,from,to,agg,rdvTotal}=scLast;
+  const fmtD=s=>{if(!s)return '…';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y;};
+  const periodLabel='Du '+fmtD(from)+' au '+fmtD(to);
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF();
+  doc.setFillColor(254,11,0); doc.rect(0,0,210,24,'F');
+  doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+  doc.text('GROF - REPORTING SKIPCALL',14,11);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text((mission||'Toutes les missions')+'  ·  '+periodLabel,14,18);
+  doc.setTextColor(10,10,10);
+  // synthèse
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Synthèse',14,34);
+  doc.autoTable({startY:38,
+    head:[['Appels','Tag RDV pris','Durée totale','Durée moy. / appel','Non appelés']],
+    body:[[fmtN(agg.calls),fmtN(rdvTotal),fmtSec(agg.totalDur),agg.calls?fmtSec(agg.totalDur/agg.calls):'-',fmtN(agg.nonCalled)]],
+    theme:'grid',headStyles:{fillColor:[10,10,10]},styles:{halign:'center'}});
+  let y=doc.lastAutoTable.finalY+9;
+  // tags
+  const tagRows=Object.entries(agg.tags).sort((a,b)=>b[1].count-a[1].count).map(([l,o])=>[l,fmtN(o.count)]);
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Répartition des tags',14,y);
+  doc.autoTable({startY:y+4,head:[['Tag','Contacts']],body:tagRows,
+    theme:'striped',headStyles:{fillColor:[254,11,0]},styles:{halign:'center'},columnStyles:{0:{halign:'left'}},
+    didParseCell:function(data){
+      if(data.section==='body'&&SC_RDV_RE.test(data.row.raw[0])){data.cell.styles.textColor=[31,169,92];data.cell.styles.fontStyle='bold';}
+    }});
+  y=doc.lastAutoTable.finalY+9;
+  // statuts
+  const stRows=Object.entries(agg.statuses).sort((a,b)=>b[1]-a[1]).map(([s,c])=>[SC_STATUS_FR[s]||s,fmtN(c)]);
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Statuts des appels',14,y);
+  doc.autoTable({startY:y+4,head:[['Statut','Appels']],body:stRows,
+    theme:'striped',headStyles:{fillColor:[10,10,10]},styles:{halign:'center'},columnStyles:{0:{halign:'left'}}});
+  y=doc.lastAutoTable.finalY+9;
+  // par séquence
+  if(agg.perSeq.length){
+    doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.text('Détail par séquence',14,y);
+    doc.autoTable({startY:y+4,
+      head:[['Séquence','Contacts','Appels','RDV pris','Durée']],
+      body:agg.perSeq.slice().sort((a,b)=>b.calls-a.calls).map(s=>[s.name,fmtN(s.contacts),fmtN(s.calls),fmtN(s.rdv),fmtSec(s.dur)]),
+      theme:'grid',headStyles:{fillColor:[254,11,0]},styles:{halign:'center',fontSize:8},columnStyles:{0:{halign:'left',fontStyle:'bold'}}});
+  }
+  const pages=doc.getNumberOfPages();
+  for(let i=1;i<=pages;i++){
+    doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.setFont('helvetica','normal');
+    doc.text('Généré le '+new Date().toLocaleString('fr-FR')+' · GROF Reporting SkipCall',14,290);
+    doc.text('Page '+i+'/'+pages,196,290,{align:'right'});
+  }
+  doc.save('grof-skipcall_'+(mission||'toutes-missions').toLowerCase()+'_'+from+'_'+to+'.pdf');
 }
 
 loadAll();
