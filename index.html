@@ -233,6 +233,14 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
           <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="applyRange('pl')">→ Appliquer</button>
         </div>
       </div>
+      <div class="filter"><label>Raccourcis</label>
+        <div class="seg" id="pl-preset">
+          <button data-p="lastweek" onclick="setPlPreset('lastweek')">Semaine dernière</button>
+          <button data-p="lastmonth" onclick="setPlPreset('lastmonth')">Mois dernier</button>
+          <button data-p="3months" onclick="setPlPreset('3months')">3 derniers mois</button>
+          <button data-p="month" class="active" onclick="setPlPreset('month')">Ce mois-ci</button>
+        </div>
+      </div>
     </div>
     <div class="kpis">
       <div class="kpi"><div class="v" id="pl-rdv">–</div><div class="l">RDV pris</div></div>
@@ -243,6 +251,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     </div>
     <div class="note" style="margin:-14px 0 20px">RDV validés / invalidés et commissions : <b style="color:var(--red)">en attente de la connexion Notion</b> — les colonnes se rempliront automatiquement dès qu'elle sera branchée.</div>
     <div class="grid">
+      <div class="panel full"><h3>→ Top performeurs <em>records — toutes périodes</em></h3><div class="kpis" id="records" style="margin-bottom:0"></div></div>
       <div class="panel full"><h3>→ Pilotage par mission</h3><div style="overflow-x:auto"><table id="t-pilot">
         <thead><tr><th>Mission</th><th class="num">RDV pris</th><th class="num">Validés</th><th class="num">Invalidés</th><th class="num">Taux validation</th><th class="num">No show</th><th class="num">Objectif / mois</th><th class="num">Avancement</th></tr></thead>
         <tbody></tbody></table></div></div>
@@ -887,7 +896,40 @@ function initPilot(){
   updateRangeLabel('pl');
   renderPilot();
 }
+function setPlPreset(p){
+  const now=new Date(); now.setHours(0,0,0,0);
+  let from,to=new Date(now);
+  if(p==='lastweek'){const d=new Date(now);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day-7);from=d;to=new Date(d);to.setDate(to.getDate()+6);}
+  else if(p==='lastmonth'){from=new Date(now.getFullYear(),now.getMonth()-1,1);to=new Date(now.getFullYear(),now.getMonth(),0);}
+  else if(p==='3months'){from=new Date(now.getFullYear(),now.getMonth()-2,1);}
+  else{from=new Date(now.getFullYear(),now.getMonth(),1);}
+  document.getElementById('pl-from').value=iso(from);
+  document.getElementById('pl-to').value=iso(to);
+  updateRangeLabel('pl');
+  document.querySelectorAll('#pl-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  renderPilot();
+}
 function renderPilot(){
+  // Top performeurs (records toutes périodes confondues)
+  const rec=document.getElementById('records');
+  if(rec){
+    let bestCalls=null,bestRdvD=null;
+    rows.forEach(r=>{
+      if(!bestCalls||r.calls>bestCalls.v)bestCalls={v:r.calls,p:r.person,d:r.date};
+      if(!bestRdvD||r.rdv>bestRdvD.v)bestRdvD={v:r.rdv,p:r.person,d:r.date};
+    });
+    const wkAgg={};
+    rows.forEach(r=>{const t=new Date(r.date);const day=(t.getDay()+6)%7;t.setDate(t.getDate()-day);const kk=r.person+'|'+iso(t);wkAgg[kk]=(wkAgg[kk]||0)+r.rdv;});
+    let bestRdvW=null;
+    Object.entries(wkAgg).forEach(([kk,v])=>{if(!bestRdvW||v>bestRdvW.v){const[p2,d2]=kk.split('|');bestRdvW={v,p:p2,d:localDate(d2)};}});
+    const fd=d=>d?d.toLocaleDateString('fr-FR'):'';
+    const card=(title,r,sub)=>`<div class="kpi"><div class="v">${r&&r.v?fmtN(r.v):'–'}</div><div class="l">${title}</div><div style="margin-top:6px;font-weight:900;font-size:14px">🏆 ${r&&r.v?r.p:'—'}</div><div style="font-size:11px;color:var(--grey)">${r&&r.v?sub(r):'&nbsp;'}</div></div>`;
+    rec.innerHTML=
+      card("Record d'appels / jour",bestCalls,r=>'le '+fd(r.d))+
+      card('Record RDV pris / jour',bestRdvD,r=>'le '+fd(r.d))+
+      card('Record RDV pris / semaine',bestRdvW,r=>'semaine du '+fd(r.d))+
+      `<div class="kpi rate"><div class="v">—</div><div class="l">Record RDV validés</div><div style="margin-top:6px;font-weight:900;font-size:14px">🏆 —</div><div style="font-size:11px;color:var(--grey)">en attente de Notion</div></div>`;
+  }
   const m=document.getElementById('pl-mission').value;
   const from=document.getElementById('pl-from').value?localDate(document.getElementById('pl-from').value):null;
   const to=document.getElementById('pl-to').value?localDate(document.getElementById('pl-to').value):null;
