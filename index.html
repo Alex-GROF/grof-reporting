@@ -313,12 +313,43 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     </div>
     <div id="probs-list" class="problems"></div>
   </section>
-<!-- VUE RDV (agrégée, sans données nominatives) -->
+<!-- VUE RDV (Notion en direct) -->
 <section id="view-rdv" style="display:none">
   <div class="kpis" id="rdv-kpis"></div>
   <div class="panel full">
     <h3>→ RDV par statut <em>· par mission</em></h3>
     <div class="rdv-board" id="rdv-board"></div>
+    <div class="note" id="rdv-note" style="margin-top:14px"></div>
+  </div>
+  <div class="panel full" style="margin-top:14px">
+    <h3>→ Nouveau RDV <em>écrit directement dans la base « RDV Pris » Notion de la mission</em></h3>
+    <div class="pform">
+      <select id="r-mission">
+        <option value="">— Mission —</option>
+        <option>DCUBE</option><option>GROF</option><option>HARVEN</option><option>KOM</option>
+        <option>MOGADOR</option><option>SPECTRUM</option><option>ZBO</option>
+      </select>
+      <select id="r-statut">
+        <option>RDV Programmé</option><option>RDV validé</option><option>RDV invalidé</option>
+        <option>RDV à reprogrammer</option><option>RDV archivé</option>
+      </select>
+      <input type="text" id="r-nom" placeholder="Nom du RDV / prospect *">
+      <input type="text" id="r-org" placeholder="Organisation">
+      <input type="text" id="r-contact" placeholder="Contact">
+      <input type="text" id="r-poste" placeholder="Poste">
+      <input type="text" id="r-tel" placeholder="Téléphone du contact">
+      <input type="text" id="r-email" placeholder="Email du contact">
+      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">Date RDV</label><input type="datetime-local" id="r-daterdv" style="width:100%"></div>
+      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">RDV pris le</label><input type="date" id="r-prisle" style="width:100%"></div>
+      <select id="r-prispar">
+        <option value="">— Pris par —</option>
+        <option>Alexis</option><option>Alix</option><option>Luca</option><option>Matteo</option>
+        <option>Idriss</option><option>Léo</option><option>Louis</option>
+      </select>
+      <div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">Enregistrement d'appel (MP3, optionnel)</label><input type="file" id="r-mp3" accept="audio/mpeg,audio/mp3,.mp3" style="width:100%;background:var(--card);border:1px solid var(--black);border-radius:12px;padding:9px 12px;font-family:inherit;font-size:13px"></div>
+      <button class="btn-add" onclick="submitRdv()">→ Créer dans Notion</button>
+      <div class="note" id="r-msg">Les champs correspondent aux bases Notion « RDV Pris [DB] » — le RDV apparaît immédiatement dans Notion. Les champs spécifiques à certaines missions (secteur, lieu…) restent à compléter dans Notion si besoin.</div>
+    </div>
   </div>
 </section>
 </main>
@@ -773,31 +804,85 @@ const RDV_DATA = {
   'Harven':            {'RDV Programmé':6,'RDV archivé':1,'RDV invalidé':1,'RDV à reprogrammer':1,'RDV validé':0},
 };
 let rdvRendered=false;
-function renderRdv(){
-  document.getElementById('rdv-snapshot-date').textContent = RDV_SNAPSHOT_DATE;
-  const missions = Object.keys(RDV_DATA);
-  const totalsByStatus = {};
-  RDV_STATUS_ORDER.forEach(s => totalsByStatus[s] = missions.reduce((a,m)=>a+(RDV_DATA[m][s]||0),0));
-  const grandTotal = Object.values(totalsByStatus).reduce((a,b)=>a+b,0);
-  const kpisEl = document.getElementById('rdv-kpis');
-  kpisEl.innerHTML = '<div class="kpi"><div class="v">'+fmtN(grandTotal)+'</div><div class="l">Total RDV</div></div>'
-    + RDV_STATUS_ORDER.map(s => '<div class="kpi" style="--red:'+RDV_STATUS_COLORS[s]+'"><div class="v">'+fmtN(totalsByStatus[s])+'</div><div class="l">'+s+'</div></div>').join('');
-  const board = document.getElementById('rdv-board');
-  board.innerHTML = RDV_STATUS_ORDER.map(status => {
-    const color = RDV_STATUS_COLORS[status];
-    const cards = missions
-      .filter(m => (RDV_DATA[m][status]||0) > 0)
-      .sort((a,b) => RDV_DATA[b][status] - RDV_DATA[a][status])
-      .map(m => '<div class="rdv-card"><div class="rdv-card-m">'+m+'</div><div class="rdv-card-n" style="color:'+color+'">'+RDV_DATA[m][status]+'</div></div>')
-      .join('') || '<div class="rdv-empty">Aucun</div>';
-    return '<div class="rdv-col"><div class="rdv-col-head"><span class="rdv-dot" style="background:'+color+'"></span>'+status+'<span class="rdv-col-count">'+totalsByStatus[status]+'</span></div><div class="rdv-col-cards">'+cards+'</div></div>';
+async function renderRdv(){
+  rdvRendered=true;
+  const kpisEl=document.getElementById('rdv-kpis');
+  const boardEl=document.getElementById('rdv-board');
+  const noteEl=document.getElementById('rdv-note');
+  boardEl.innerHTML='<div class="msg"><div class="spinner"></div>Chargement Notion…</div>';
+  let data=null, live=false, errMsg='';
+  try{
+    const resp=await SC('/notion/status-all',{});
+    if(resp && !resp.error){
+      data={};
+      Object.keys(resp).forEach(m=>{ if(resp[m]&&resp[m].counts) data[m]=resp[m].counts; });
+      if(Object.keys(data).length) live=true;
+    } else if(resp && resp.error){ errMsg=resp.error; }
+  }catch(e){ errMsg=e.message; }
+  if(!live) data=RDV_DATA;
+  const missions=Object.keys(data);
+  const totalsByStatus={};
+  RDV_STATUS_ORDER.forEach(s=>totalsByStatus[s]=missions.reduce((a,m)=>a+(data[m][s]||0),0));
+  const grandTotal=Object.values(totalsByStatus).reduce((a,b)=>a+b,0);
+  kpisEl.innerHTML='<div class="kpi"><div class="v">'+fmtN(grandTotal)+'</div><div class="l">Total RDV</div></div>'
+    + RDV_STATUS_ORDER.map(s=>'<div class="kpi" style="--red:'+RDV_STATUS_COLORS[s]+'"><div class="v">'+fmtN(totalsByStatus[s])+'</div><div class="l">'+s+'</div></div>').join('');
+  boardEl.innerHTML = RDV_STATUS_ORDER.map(s=>{
+    const cards=missions.filter(m=>(data[m][s]||0)>0).sort((a,b)=>(data[b][s]||0)-(data[a][s]||0)).map(m=>
+      '<div class="rdv-card"><span class="rdv-card-m">'+esc(m)+'</span><span class="rdv-card-n" style="color:'+RDV_STATUS_COLORS[s]+'">'+data[m][s]+'</span></div>'
+    ).join('') || '<div class="rdv-empty">Aucun</div>';
+    return '<div class="rdv-col"><div class="rdv-col-head"><span class="rdv-dot" style="background:'+RDV_STATUS_COLORS[s]+'"></span>'+esc(s)+'<span class="rdv-col-count">'+(totalsByStatus[s]||0)+'</span></div><div class="rdv-col-cards">'+cards+'</div></div>';
   }).join('');
-  rdvRendered = true;
+  if(noteEl){
+    noteEl.innerHTML = live
+      ? 'Données en direct depuis Notion.'
+      : 'Snapshot Notion du <b style="color:var(--red)">'+RDV_SNAPSHOT_DATE+'</b>'+(errMsg?' — '+esc(errMsg):' — connexion Notion indisponible')+' (le proxy Apps Script doit être configuré avec le token Notion).';
+  }
 }
 
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(String(r.result).split(',')[1]);
+    r.onerror=reject;
+    r.readAsDataURL(file);
+  });
+}
 
-// --- Calendrier des présences (semaine, hors week-end) ---
-let calMonday=(()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d;})();
+async function submitRdv(){
+  const v=id=>document.getElementById(id).value.trim();
+  const msg=document.getElementById('r-msg');
+  if(!v('r-mission')){msg.textContent='⚠ Choisis une mission.';msg.style.color='var(--red)';return;}
+  if(!v('r-nom')){msg.textContent='⚠ Le nom du RDV est obligatoire.';msg.style.color='var(--red)';return;}
+  const btn=document.querySelector('#view-rdv .btn-add');
+  const prevLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='→ Création…';
+  const payload={action:'notion_rdv',mission:v('r-mission'),nom:v('r-nom'),org:v('r-org'),contact:v('r-contact'),
+    poste:v('r-poste'),tel:v('r-tel'),email:v('r-email'),dateRdv:v('r-daterdv'),prisLe:v('r-prisle'),
+    prisPar:v('r-prispar'),statut:v('r-statut')};
+  try{
+    const fileInput=document.getElementById('r-mp3');
+    if(fileInput.files && fileInput.files[0]){
+      const f=fileInput.files[0];
+      if(f.size>20*1024*1024){ msg.textContent='⚠ Fichier volumineux (>20 Mo), ça peut échouer.'; msg.style.color='var(--red)'; }
+      payload.audioBase64=await fileToBase64(f);
+      payload.audioName=f.name;
+      payload.audioType=f.type||'audio/mpeg';
+    }
+    const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'réponse invalide');
+    ['r-nom','r-org','r-contact','r-poste','r-tel','r-email','r-daterdv','r-prisle'].forEach(i=>document.getElementById(i).value='');
+    fileInput.value='';
+    msg.textContent='✓ RDV créé dans Notion ('+payload.mission+').';
+    msg.style.color='var(--green)';
+    renderRdv();
+  }catch(e){
+    msg.textContent='✗ Erreur : '+e.message;
+    msg.style.color='var(--red)';
+  }
+  btn.disabled=false; btn.textContent=prevLabel;
+}
+
 function calWeek(delta){calMonday.setDate(calMonday.getDate()+7*delta);renderCal();}
 function renderCal(){
   const head=document.querySelector('#t-cal thead');
