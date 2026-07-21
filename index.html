@@ -103,6 +103,17 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 .updated{font-size:12px;color:var(--grey)}
 .updated b{color:var(--black)}
 @media(max-width:900px){.grid{grid-template-columns:1fr}main{padding:20px 16px 60px}header{padding:16px}}
+
+.rdv-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
+.rdv-col{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;min-width:220px;max-width:220px;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.rdv-col-head{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.rdv-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.rdv-col-count{margin-left:auto;color:var(--grey);font-weight:700}
+.rdv-col-cards{display:grid;gap:8px}
+.rdv-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rdv-card-m{font-size:12.5px;font-weight:700}
+.rdv-card-n{font-size:16px;font-weight:900}
+.rdv-empty{font-size:12px;color:#B5B5B5;padding:6px 2px}
 </style>
 </head>
 <body>
@@ -121,7 +132,8 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     <button data-view="pilot" onclick="switchView('pilot')">→ Pilotage</button>
     <button class="active" data-view="perf" onclick="switchView('perf')">→ Performance</button>
     <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
-    <button data-view="probs" onclick="switchView('probs')">→ Problèmes &amp; Solutions</button>
+    <button data-view="rdv" onclick="switchView('rdv')">→ RDV</button>
+            <button data-view="probs" onclick="switchView('probs')">→ Problèmes &amp; Solutions</button>
   </nav>
   <div class="updated" id="updated"></div>
 </header>
@@ -301,6 +313,18 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     </div>
     <div id="probs-list" class="problems"></div>
   </section>
+<!-- VUE RDV (agrégée, sans données nominatives) -->
+<section id="view-rdv" style="display:none">
+  <div class="howto" style="margin-top:0;margin-bottom:22px">
+    → Vue agrégée : nombre de RDV par statut et par mission. Aucune donnée nominative de prospect (nom, email, téléphone) n'est publiée ici — le détail par RDV reste dans nos outils internes.<br>
+    Snapshot Notion du <b id="rdv-snapshot-date"></b> — données figées, demande une mise à jour quand tu veux des chiffres frais.
+  </div>
+  <div class="kpis" id="rdv-kpis"></div>
+  <div class="panel full">
+    <h3>→ RDV par statut <em>· par mission</em></h3>
+    <div class="rdv-board" id="rdv-board"></div>
+  </div>
+</section>
 </main>
 
 <footer>© <span id="year"></span> GROF — Reporting SDR · Données : <a href="https://docs.google.com/spreadsheets/d/1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE/edit" target="_blank">Google Sheet ↗</a></footer>
@@ -738,6 +762,44 @@ function render(){
 }
 function k(id,v){document.getElementById(id).textContent=v}
 
+// --- RDV (vue agrégée, snapshot Notion — aucune donnée nominative) ---
+const RDV_SNAPSHOT_DATE = '21/07/2026';
+const RDV_STATUS_ORDER = ['RDV à reprogrammer','RDV Programmé','RDV validé','RDV invalidé','RDV archivé'];
+const RDV_STATUS_COLORS = {
+  'RDV à reprogrammer':'#3498DB', 'RDV Programmé':'#F39C12', 'RDV validé':'#1FA95C',
+  'RDV invalidé':'#FE0B00', 'RDV archivé':'#6B6B6B'
+};
+const RDV_DATA = {
+  'GROF Prospection': {'RDV Programmé':17,'RDV invalidé':3,'RDV validé':11,'RDV à reprogrammer':7,'RDV archivé':0},
+  'DCUBE':             {'RDV Programmé':5,'RDV archivé':83,'RDV invalidé':34,'RDV validé':1,'RDV à reprogrammer':14},
+  'WeeChooz':          {'RDV Programmé':7,'RDV invalidé':2,'RDV validé':3,'RDV à reprogrammer':5,'RDV archivé':0},
+  'Spectrum':          {'RDV Programmé':2,'RDV archivé':6,'RDV invalidé':1,'RDV à reprogrammer':1,'RDV validé':0},
+  'Harven':            {'RDV Programmé':6,'RDV archivé':1,'RDV invalidé':1,'RDV à reprogrammer':1,'RDV validé':0},
+};
+let rdvRendered=false;
+function renderRdv(){
+  document.getElementById('rdv-snapshot-date').textContent = RDV_SNAPSHOT_DATE;
+  const missions = Object.keys(RDV_DATA);
+  const totalsByStatus = {};
+  RDV_STATUS_ORDER.forEach(s => totalsByStatus[s] = missions.reduce((a,m)=>a+(RDV_DATA[m][s]||0),0));
+  const grandTotal = Object.values(totalsByStatus).reduce((a,b)=>a+b,0);
+  const kpisEl = document.getElementById('rdv-kpis');
+  kpisEl.innerHTML = '<div class="kpi"><div class="v">'+fmtN(grandTotal)+'</div><div class="l">Total RDV</div></div>'
+    + RDV_STATUS_ORDER.map(s => '<div class="kpi" style="--red:'+RDV_STATUS_COLORS[s]+'"><div class="v">'+fmtN(totalsByStatus[s])+'</div><div class="l">'+s+'</div></div>').join('');
+  const board = document.getElementById('rdv-board');
+  board.innerHTML = RDV_STATUS_ORDER.map(status => {
+    const color = RDV_STATUS_COLORS[status];
+    const cards = missions
+      .filter(m => (RDV_DATA[m][status]||0) > 0)
+      .sort((a,b) => RDV_DATA[b][status] - RDV_DATA[a][status])
+      .map(m => '<div class="rdv-card"><div class="rdv-card-m">'+m+'</div><div class="rdv-card-n" style="color:'+color+'">'+RDV_DATA[m][status]+'</div></div>')
+      .join('') || '<div class="rdv-empty">Aucun</div>';
+    return '<div class="rdv-col"><div class="rdv-col-head"><span class="rdv-dot" style="background:'+color+'"></span>'+status+'<span class="rdv-col-count">'+totalsByStatus[status]+'</span></div><div class="rdv-col-cards">'+cards+'</div></div>';
+  }).join('');
+  rdvRendered = true;
+}
+
+
 // --- Calendrier des présences (semaine, hors week-end) ---
 let calMonday=(()=>{const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d;})();
 function calWeek(delta){calMonday.setDate(calMonday.getDate()+7*delta);renderCal();}
@@ -912,8 +974,9 @@ function renderProblems(){
 
 function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
-  ['perf','skip','pilot','probs'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
+  ['perf','skip','pilot','probs','rdv'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
+  if(v==='rdv'&&!rdvRendered) renderRdv();
   if(v==='skip'&&scSequences===null) initSkip();
   if(v==='pilot'&&!pilotInit) initPilot();
 }
