@@ -132,7 +132,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     <button data-view="pilot" onclick="switchView('pilot')">→ Pilotage</button>
     <button class="active" data-view="perf" onclick="switchView('perf')">→ Performance</button>
     <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
-    <button data-view="rdv" onclick="switchView('rdv')">→ RDV</button>
+    <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
             <button data-view="probs" onclick="switchView('probs')">→ Problèmes &amp; Solutions</button>
   </nav>
   <div class="updated" id="updated"></div>
@@ -315,10 +315,6 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
   </section>
 <!-- VUE RDV (agrégée, sans données nominatives) -->
 <section id="view-rdv" style="display:none">
-  <div class="howto" style="margin-top:0;margin-bottom:22px">
-    → Vue agrégée : nombre de RDV par statut et par mission. Aucune donnée nominative de prospect (nom, email, téléphone) n'est publiée ici — le détail par RDV reste dans nos outils internes.<br>
-    Snapshot Notion du <b id="rdv-snapshot-date"></b> — données figées, demande une mise à jour quand tu veux des chiffres frais.
-  </div>
   <div class="kpis" id="rdv-kpis"></div>
   <div class="panel full">
     <h3>→ RDV par statut <em>· par mission</em></h3>
@@ -1168,6 +1164,28 @@ async function scPool(tasks,limit){
   await Promise.all(Array.from({length:Math.min(limit,tasks.length)},worker));
   return results;
 }
+let scPersonCache={};
+async function loadCallsByPerson(from,to,mission){
+  const filters={};
+  if(from) filters.createdAt={op:'between',from:from+'T00:00:00.000Z',to:(to||from)+'T23:59:59.999Z'};
+  let page=1,all=[];
+  while(true){
+    const j=await SC('/v1/calls',{limit:100,page,filters:JSON.stringify(filters)});
+    all=all.concat(j.data||[]);
+    if(page>=(j.totalPages||1)||page>50)break;
+    page++;
+  }
+  let seqIds=null;
+  if(mission) seqIds=new Set(scSequences.filter(s=>s.mission===mission).map(s=>s.id));
+  const byPerson={};
+  all.forEach(c=>{
+    if(seqIds&&!seqIds.has(c.sequenceId))return;
+    const caller=c.caller;
+    const name=caller?((caller.firstName||'')+' '+(caller.lastName||'')).trim():'Inconnu';
+    byPerson[name||'Inconnu']=(byPerson[name||'Inconnu']||0)+1;
+  });
+  return byPerson;
+}
 async function initSkip(){
   const now=new Date();
   document.getElementById('sc-from').value=iso(new Date(now.getFullYear(),now.getMonth(),1));
@@ -1247,6 +1265,15 @@ async function loadSkip(){
     scLast={mission,from,to,agg,rdvTotal};
     const tagEntries=Object.entries(agg.tags).map(([label,o])=>({label,count:o.count,cls:o.success?'success':''})).sort((a,b)=>b.count-a.count);
     const stEntries=Object.entries(agg.statuses).map(([s,c])=>({label:SC_STATUS_FR[s]||s,count:c,cls:(s==='CONNECTED'||s==='COMPLETED')?'success':(s==='NO_ANSWER'||s==='VOICEMAIL'||s==='BUSY'||s==='MISSED_CALL')?'neutral':''})).sort((a,b)=>b.count-a.count);
+    let personPanel='';
+    try{
+      let byPerson=scPersonCache[cacheKey];
+      if(!byPerson){ byPerson=await loadCallsByPerson(from,to,mission); scPersonCache[cacheKey]=byPerson; }
+      const personEntries=Object.entries(byPerson).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count);
+      personPanel=`<div class="panel"><h3>\u2192 Appels par personne</h3>${scBars(personEntries)}</div>`;
+    }catch(e){
+      personPanel=`<div class="panel"><h3>\u2192 Appels par personne</h3><p style="color:var(--grey);font-size:13px">Indisponible (${esc(String(e.message||e))}).</p></div>`;
+    }
     let h=agg.capNote||'';
     h+=`<div class="kpis">
       <div class="kpi"><div class="v">${fmtN(agg.calls)}</div><div class="l">Appels</div></div>
@@ -1257,7 +1284,8 @@ async function loadSkip(){
     </div>
     <div class="grid">
       <div class="panel"><h3>→ Répartition des tags</h3>${scBars(tagEntries)}</div>
-      <div class="panel"><h3>→ Statuts des appels</h3>${scBars(stEntries)}</div>`;
+      <div class="panel"><h3>→ Statuts des appels</h3>${scBars(stEntries)}</div>
+      ${personPanel}`;
     if(agg.perSeq.length){
       const rows=agg.perSeq.sort((a,b)=>b.calls-a.calls).map(s=>
         `<tr${s.calls===0?' class="dim"':''}><td>${esc(s.name)}</td><td class="num">${fmtN(s.contacts)}</td>
