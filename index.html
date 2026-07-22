@@ -321,7 +321,12 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     <div class="rdv-board" id="rdv-board"></div>
     <div class="note" id="rdv-note" style="margin-top:14px"></div>
   </div>
-  <div class="panel full" style="margin-top:14px">
+    <div class="panel full" style="margin-top:14px">
+    <h3>→ Détail des RDV <em>par mission — clique une mission</em></h3>
+    <div id="rdv-mission-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <div id="rdv-detail-table"></div>
+  </div>
+<div class="panel full" style="margin-top:14px">
     <h3>→ Nouveau RDV <em>écrit directement dans la base « RDV Pris » Notion de la mission</em></h3>
     <div class="pform">
       <select id="r-mission">
@@ -843,6 +848,62 @@ async function renderRdv(){
     noteEl.innerHTML = live
       ? 'Données en direct depuis Notion.'
       : 'Snapshot Notion du <b style="color:var(--red)">'+RDV_SNAPSHOT_DATE+'</b>'+(errMsg?' — '+esc(errMsg):' — connexion Notion indisponible')+' (le proxy Apps Script doit être configuré avec le token Notion).';
+  }
+  renderMissionTabs(missions);
+}
+
+let currentMissionTab = null;
+function renderMissionTabs(missions){
+  const tabsEl = document.getElementById('rdv-mission-tabs');
+  if(!tabsEl) return;
+  tabsEl.innerHTML = missions.map(m=>
+    '<button class="btn-tab" data-mission="'+esc(m)+'" onclick="loadMissionDetails(\''+m.replace(/'/g,"\\'")+'\')" style="padding:8px 16px;border-radius:20px;border:1px solid var(--black);background:var(--card);font-weight:700;font-size:12px;cursor:pointer">'+esc(m)+'</button>'
+  ).join('');
+  if(currentMissionTab && missions.includes(currentMissionTab)){
+    loadMissionDetails(currentMissionTab);
+  }
+}
+
+async function loadMissionDetails(mission){
+  currentMissionTab = mission;
+  const tabsEl = document.getElementById('rdv-mission-tabs');
+  if(tabsEl){
+    Array.from(tabsEl.children).forEach(b=>{
+      const active = b.getAttribute('data-mission')===mission;
+      b.style.background = active ? 'var(--black)' : 'var(--card)';
+      b.style.color = active ? '#fff' : 'var(--black)';
+    });
+  }
+  const tableEl = document.getElementById('rdv-detail-table');
+  if(!tableEl) return;
+  tableEl.innerHTML = '<div class="msg"><div class="spinner"></div>Chargement…</div>';
+  try{
+    const resp = await SC('/notion/mission-details', {mission});
+    const rows = (resp && resp.results) || [];
+    if(!rows.length){ tableEl.innerHTML = '<div class="msg">Aucun RDV pour '+esc(mission)+'.</div>'; return; }
+    const fmtDate = d => { if(!d) return '—'; const dt=new Date(d); return d.includes('T') ? dt.toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}) : dt.toLocaleDateString('fr-FR'); };
+    tableEl.innerHTML = '<div style="overflow-x:auto"><table><thead><tr>'+
+      ['Nom','Statut','Organisation','Contact','Poste','Téléphone','Email','Date RDV','Pris le','Pris par','Personne','Secteur','Lieu','MP3'].map(h=>'<th>'+h+'</th>').join('')+
+      '</tr></thead><tbody>'+
+      rows.map(r=>'<tr>'+
+        '<td>'+(r.url?'<a href="'+esc(r.url)+'" target="_blank" style="color:inherit;text-decoration:underline">'+esc(r.nom||'—')+'</a>':esc(r.nom||'—'))+'</td>'+
+        '<td>'+esc(r.statut||'—')+'</td>'+
+        '<td>'+esc(r.organisation||'—')+'</td>'+
+        '<td>'+esc(r.contact||'—')+'</td>'+
+        '<td>'+esc(r.poste||'—')+'</td>'+
+        '<td>'+esc(r.tel||'—')+'</td>'+
+        '<td>'+esc(r.email||'—')+'</td>'+
+        '<td>'+fmtDate(r.dateRdv)+'</td>'+
+        '<td>'+fmtDate(r.prisLe)+'</td>'+
+        '<td>'+esc(r.prisPar||'—')+'</td>'+
+        '<td>'+esc(r.personne||'—')+'</td>'+
+        '<td>'+esc(r.secteur||'—')+'</td>'+
+        '<td>'+esc(r.lieu||'—')+'</td>'+
+        '<td>'+(r.hasRecord?'🎧':'—')+'</td>'+
+      '</tr>').join('')+
+      '</tbody></table></div>';
+  }catch(e){
+    tableEl.innerHTML = '<div class="msg">Erreur : '+esc(e.message)+'</div>';
   }
 }
 
