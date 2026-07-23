@@ -1630,15 +1630,6 @@ async function loadSkip(){
     scLast={mission,from,to,agg,rdvTotal};
     const tagEntries=Object.entries(agg.tags).map(([label,o])=>({label,count:o.count,cls:o.success?'success':''})).sort((a,b)=>b.count-a.count);
     const stEntries=Object.entries(agg.statuses).map(([s,c])=>({label:SC_STATUS_FR[s]||s,count:c,cls:(s==='CONNECTED'||s==='COMPLETED')?'success':(s==='NO_ANSWER'||s==='VOICEMAIL'||s==='BUSY'||s==='MISSED_CALL')?'neutral':''})).sort((a,b)=>b.count-a.count);
-    let personPanel='';
-    try{
-      let byPerson=scPersonCache[cacheKey];
-      if(!byPerson){ byPerson=await loadCallsByPerson(from,to,mission); scPersonCache[cacheKey]=byPerson; }
-      const personEntries=Object.entries(byPerson).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count);
-      personPanel=`<div class="panel"><h3>\u2192 Appels par personne</h3>${scBars(personEntries)}</div>`;
-    }catch(e){
-      personPanel=`<div class="panel"><h3>\u2192 Appels par personne</h3><p style="color:var(--grey);font-size:13px">Indisponible (${esc(String(e.message||e))}).</p></div>`;
-    }
     let h=agg.capNote||'';
     h+=`<div class="kpis">
       <div class="kpi"><div class="v">${fmtN(agg.calls)}</div><div class="l">Appels</div></div>
@@ -1649,8 +1640,7 @@ async function loadSkip(){
     </div>
     <div class="grid">
       <div class="panel"><h3>→ Répartition des tags</h3>${scBars(tagEntries)}</div>
-      <div class="panel"><h3>→ Statuts des appels</h3>${scBars(stEntries)}</div>
-      ${personPanel}`;
+      <div class="panel"><h3>→ Statuts des appels</h3>${scBars(stEntries)}</div>`;
     if(agg.perSeq.length){
       const rows=agg.perSeq.sort((a,b)=>b.calls-a.calls).map(s=>
         `<tr${s.calls===0?' class="dim"':''}><td>${esc(s.name)}</td><td class="num">${fmtN(s.contacts)}</td>
