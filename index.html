@@ -249,7 +249,14 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
   <section id="view-skip" style="display:none">
     <div class="filters">
       <div class="filter"><label>Mission</label><select id="sc-mission"></select></div>
-      <div class="filter range-wrap"><label>Période</label>
+      
+      <div class="filter"><label>Période</label>
+        <div class="seg" id="sc-preset">
+          <button data-p="yesterday" onclick="setSkipPreset('yesterday')">Hier</button>
+          <button data-p="today" onclick="setSkipPreset('today')">Aujourd'hui</button>
+          <button data-p="week" onclick="setSkipPreset('week')">Cette semaine</button>
+        </div>
+      </div><div class="filter range-wrap"><label>Dates</label>
         <button class="range-btn" id="sc-range" onclick="toggleRange('sc')">…</button>
         <div class="range-pop" id="sc-pop">
           <label>Du</label><input type="date" id="sc-from">
@@ -597,6 +604,17 @@ function setPreset(p){
   gran=(p==='all')?'month':'day';
   document.querySelectorAll('#f-gran button').forEach(b=>b.classList.toggle('active',b.dataset.g===gran));
   render();
+}
+function setSkipPreset(p){
+  const now = new Date(); now.setHours(0,0,0,0);
+  let from = new Date(now), to = new Date(now);
+  if(p==='yesterday'){from.setDate(from.getDate()-1); to=new Date(from);}
+  else if(p==='week'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day);}
+  document.getElementById('sc-from').value = iso(from);
+  document.getElementById('sc-to').value = iso(to);
+  updateRangeLabel('sc');
+  document.querySelectorAll('#sc-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  loadSkip();
 }
 function clearPreset(){
   document.querySelectorAll('#f-preset button').forEach(b=>b.classList.remove('active'));
