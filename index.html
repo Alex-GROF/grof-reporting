@@ -76,8 +76,15 @@ tr:hover td{background:rgba(254,11,0,.04)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .problems{display:grid;gap:14px}
 .prob{background:var(--card);border:1px solid var(--border);padding:22px;border-left:3px solid var(--red);box-shadow:0 1px 2px rgba(0,0,0,.04);border-radius:14px;position:relative}
-.prob .del{position:absolute;top:14px;right:14px;background:none;border:1px solid var(--border);color:var(--grey);border-radius:8px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
-.prob .del:hover{border-color:var(--red);color:var(--red)}
+.prob .prob-actions{position:absolute;top:14px;right:14px;display:flex;gap:8px}
+.prob .prob-actions button{background:none;border:1px solid var(--border);color:var(--grey);border-radius:8px;padding:4px 10px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.prob .prob-actions .del:hover{border-color:var(--red);color:var(--red)}
+.prob .prob-actions .done-btn:hover{border-color:var(--green);color:var(--green)}
+.prob.prob-done{border-left-color:var(--green);opacity:.7}
+.prob .meta .tag.status-done{border-color:var(--green);color:var(--green)}
+.probs-history{margin-top:26px;border-top:1px dashed var(--border);padding-top:18px;display:grid;gap:14px}
+.history-toggle{background:none;border:1px solid var(--black);color:var(--black);border-radius:12px;padding:10px 16px;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;justify-self:start}
+.history-toggle:hover{background:var(--invert);color:var(--invert-text)}
 .mission-head{font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin:18px 0 4px;display:flex;align-items:center;gap:10px}
 .mission-head::before{content:'→';color:var(--red)}
 .mission-head .count{font-size:11px;color:var(--grey);font-weight:700}
@@ -495,6 +502,9 @@ let rows=[];      // {person, mission, date(Date), dur, calls, conn, rdv, noshow
 let allMissions=new Set();
 let gran='month';
 let problems=null;
+let probsHistoryOpen=false;
+let __activeProbs=[];
+let __doneProbs=[];
 
 document.getElementById('year').textContent=new Date().getFullYear();
 
@@ -1287,6 +1297,25 @@ function delProblem(id){
   saveLocalProblems(localProblems().filter(p=>p.id!==id));
   renderProblems();
 }
+function problemKey(p){
+  return p.local ? ('local-'+p.id) : ('sheet-'+[p.date,p.mission,p.prob].join('|'));
+}
+function loadDoneKeys(){try{return new Set(JSON.parse(localStorage.getItem('grof-problems-done')||'[]'))}catch(e){return new Set()}}
+function saveDoneKeys(s){localStorage.setItem('grof-problems-done',JSON.stringify([...s]))}
+function markProblemDone(idx,done){
+  const list=done?__doneProbs:__activeProbs;
+  const p=list[idx];
+  if(!p) return;
+  const key=problemKey(p);
+  const set=loadDoneKeys();
+  if(done) set.delete(key); else set.add(key);
+  saveDoneKeys(set);
+  renderProblems();
+}
+function toggleProbsHistory(){
+  probsHistoryOpen=!probsHistoryOpen;
+  renderProblems();
+}
 
 // Normalise les lignes de l'onglet « Problèmes » du Sheet
 function sheetProblems(){
@@ -1299,20 +1328,32 @@ function sheetProblems(){
   }).filter(p=>p.prob||p.sol);
 }
 
-function probCard(p){
-  let h='<div class="prob"><div class="meta">';
+function probCard(p,idx,done){
+  let h='<div class="prob'+(done?' prob-done':'')+'"><div class="meta">';
   if(p.date) h+=`<span class="tag">${esc(p.date)}</span>`;
   if(p.pers) h+=`<span class="tag">${esc(p.pers)}</span>`;
-  if(p.statut) h+=`<span class="tag status">${esc(p.statut)}</span>`;
+  if(done) h+=`<span class="tag status status-done">Effectué</span>`;
+  else if(p.statut) h+=`<span class="tag status">${esc(p.statut)}</span>`;
   h+=`<span class="tag">${p.local?'Saisi sur le site':'Google Sheet'}</span>`;
   h+='</div>';
-  if(p.local) h+=`<button class="del" onclick="delProblem(${p.id})">✕ Supprimer</button>`;
+  h+='<div class="prob-actions">';
+  h+=`<button class="done-btn" onclick="markProblemDone(${idx},${done})">${done?'↩ Réactiver':'✓ Effectué'}</button>`;
+  if(p.local && !done) h+=`<button class="del" onclick="delProblem(${p.id})">✕ Supprimer</button>`;
+  h+='</div>';
   h+=`<h4>${esc(p.prob||'Problématique')}</h4>`;
   if(p.sol) h+=`<div class="block"><b>→ Solution</b><p>${esc(p.sol)}</p></div>`;
   if(p.marche) h+=`<div class="block"><b>→ Marche à suivre</b><p>${esc(p.marche)}</p></div>`;
   return h+'</div>';
 }
 
+function renderProbGroup(list,done){
+  const byM={};
+  list.forEach((p,i)=>{(byM[p.mission]=byM[p.mission]||[]).push(i);});
+  return Object.keys(byM).sort().map(m=>
+    `<div class="mission-head">${esc(m)} <span class="count">${byM[m].length} problématique${byM[m].length>1?'s':''}</span></div>`
+    + byM[m].map(i=>probCard(list[i],i,done)).join('')
+  ).join('');
+}
 function renderProblems(){
   const box=document.getElementById('probs-list');
   // datalists missions + personnes
@@ -1324,13 +1365,21 @@ function renderProblems(){
       Ajoute-en une avec le formulaire ci-dessus — elle sera classée par mission.</div>`;
     return;
   }
-  // regroupées par mission
-  const byM={};
-  all.forEach(p=>{(byM[p.mission]=byM[p.mission]||[]).push(p);});
-  box.innerHTML=Object.keys(byM).sort().map(m=>
-    `<div class="mission-head">${esc(m)} <span class="count">${byM[m].length} problématique${byM[m].length>1?'s':''}</span></div>`
-    + byM[m].map(probCard).join('')
-  ).join('');
+  const doneKeys=loadDoneKeys();
+  __activeProbs=all.filter(p=>!doneKeys.has(problemKey(p)));
+  __doneProbs=all.filter(p=>doneKeys.has(problemKey(p)));
+  let h='';
+  if(!__activeProbs.length){
+    h+=`<div class="msg"><div class="big">Aucune problématique en cours</div>Toutes les problématiques ont été marquées comme effectuées.</div>`;
+  }else{
+    h+=renderProbGroup(__activeProbs,false);
+  }
+  h+=`<div class="probs-history"><button class="history-toggle" onclick="toggleProbsHistory()">${probsHistoryOpen?'▾':'▸'} Historique des tickets effectués (${__doneProbs.length})</button>`;
+  if(probsHistoryOpen){
+    h+=__doneProbs.length ? renderProbGroup(__doneProbs,true) : `<div class="msg">Aucun ticket effectué pour l'instant.</div>`;
+  }
+  h+='</div>';
+  box.innerHTML=h;
 }
 
 function switchView(v){
