@@ -323,7 +323,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
           <div style="overflow-x:auto"><table id="t-jours">
           <thead><tr><th>Personne</th><th class="num">Jours travaillés</th><th class="num">Appels / jour</th><th class="num">Décrochés / jour</th><th class="num">RDV / jour</th></tr></thead>
           <tbody></tbody></table></div></div>
-      <div class="panel full"><h3>→ Commissions par SDR</h3><div style="overflow-x:auto"><table id="t-coms">
+      <div class="panel full"><h3>→ Commissions par SDR</h3><div id="pilot-notion-note" class="note" style="margin-bottom:10px;color:var(--grey);font-size:12px">Chargement des données Notion en direct…</div><div style="overflow-x:auto"><table id="t-coms">
         <thead><tr><th>Personne</th><th class="num">RDV pris</th><th class="num">RDV validés</th><th class="num">Commission</th></tr></thead>
         <tbody></tbody></table></div></div>
     </div>
@@ -1357,6 +1357,44 @@ function initPilot(){
   document.getElementById('pl-to').value=iso(now);
   updateRangeLabel('pl');
   renderPilot();
+  loadNotionRdvLive();
+}
+let notionRdvLive=false;
+async function loadNotionRdvLive(){
+  const noteEl=document.getElementById('pilot-notion-note');
+  try{
+    const statusResp=await SC('/notion/status-all',{});
+    if(!statusResp||statusResp.error) throw new Error((statusResp&&statusResp.error)||'proxy indisponible');
+    const missions=Object.keys(statusResp).filter(m=>statusResp[m]&&statusResp[m].counts);
+    if(!missions.length) throw new Error('aucune mission Notion');
+    const agg={};
+    for(const mission of missions){
+      try{
+        const resp=await SC('/notion/mission-details',{mission});
+        const rowsM=(resp&&resp.results)||[];
+        rowsM.forEach(r=>{
+          let tag=null;
+          if(r.statut==='RDV validé') tag='val';
+          else if(r.statut==='RDV invalidé') tag='inval';
+          if(!tag) return;
+          const dateSrc=r.dateRdv||r.prisLe;
+          if(!dateSrc) return;
+          const month=String(dateSrc).slice(0,7);
+          const person=r.prisParKey||'Autre';
+          const key=month+'|'+mission+'|'+tag+'|'+person;
+          agg[key]=(agg[key]||0)+1;
+        });
+      }catch(e){}
+    }
+    const entries=Object.entries(agg).map(([k,count])=>{const parts=k.split('|');return[parts[0],parts[1],parts[2],parts[3],count];});
+    if(!entries.length) throw new Error('aucune donnée');
+    NOTION_RDV.splice(0,NOTION_RDV.length,...entries);
+    notionRdvLive=true;
+    if(noteEl) noteEl.innerHTML='Données Notion en direct (mis à jour '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+').';
+    if(pilotInit) renderPilot();
+  }catch(e){
+    if(noteEl) noteEl.innerHTML='Snapshot Notion du <b style="color:var(--red)">'+RDV_SNAPSHOT_DATE+'</b> — connexion Notion indisponible ('+esc(e.message)+').';
+  }
 }
 let jtPeriod='month';
 function setJtPreset(p){
