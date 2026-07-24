@@ -1332,7 +1332,7 @@ function probCard(p,idx,done){
   let h='<div class="prob'+(done?' prob-done':'')+'"><div class="meta">';
   if(p.date) h+=`<span class="tag">${esc(p.date)}</span>`;
   if(p.pers) h+=`<span class="tag">${esc(p.pers)}</span>`;
-  if(done) h+=`<span class="tag status status-done">Effectué</span>`;
+  if(done) h+=`<span class="tag status-done">Effectué</span>`;
   else if(p.statut) h+=`<span class="tag status">${esc(p.statut)}</span>`;
   h+=`<span class="tag">${p.local?'Saisi sur le site':'Google Sheet'}</span>`;
   h+='</div>';
