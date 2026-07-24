@@ -298,7 +298,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
       <div class="kpi rate"><div class="v" id="pl-txval">–</div><div class="l">Taux de validation</div></div>
       <div class="kpi"><div class="v" id="pl-noshow">–</div><div class="l">No show</div></div>
     </div>
-    <div class="note" style="margin:-14px 0 20px">RDV validés / invalidés et commissions : <b style="color:var(--red)">snapshot Notion du 20/07/2026</b> — demande une mise à jour quand tu veux des chiffres frais.</div>
+    
     <div class="grid">
       <div class="panel full"><h3>→ Top performeurs <em>records — depuis le début d'année</em></h3><div class="kpis" id="records" style="margin-bottom:0"></div></div>
       <div class="panel full"><h3>→ Pilotage par mission</h3><div style="overflow-x:auto"><table id="t-pilot">
@@ -323,7 +323,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
           <div style="overflow-x:auto"><table id="t-jours">
           <thead><tr><th>Personne</th><th class="num">Jours travaillés</th><th class="num">Appels / jour</th><th class="num">Décrochés / jour</th><th class="num">RDV / jour</th></tr></thead>
           <tbody></tbody></table></div></div>
-      <div class="panel full"><h3>→ Commissions par SDR</h3><div id="pilot-notion-note" class="note" style="margin-bottom:10px;color:var(--grey);font-size:12px">Chargement des données Notion en direct…</div><div style="overflow-x:auto"><table id="t-coms">
+      <div class="panel full"><h3>→ Commissions par SDR</h3><div style="overflow-x:auto"><table id="t-coms">
         <thead><tr><th>Personne</th><th class="num">RDV pris</th><th class="num">RDV validés</th><th class="num">Commission</th></tr></thead>
         <tbody></tbody></table></div></div>
     </div>
@@ -1496,7 +1496,7 @@ function renderPilot(){
       const anyOk=Object.values(joursData).some(v=>v);
       const manquants=Object.keys(PREPARATOIRES).filter(p=>!joursData[p]);
       let note=anyOk?'':'⚠ Préparatoires inaccessibles : partage les Google Sheets « Préparatoires » par lien (Lecteur). ';
-      if(joursSnapshot.length) note+='Données snapshot CSV du 07/07/2026 pour : '+joursSnapshot.join(', ')+' (partage les Sheets pour du temps réel). ';
+      
       if(manquants.length&&anyOk) note+='Manquants : '+manquants.join(', ')+'.';
       noteEl.textContent=note;
       const[jtFrom,jtTo]=jtRange();
