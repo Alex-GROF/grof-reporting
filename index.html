@@ -170,14 +170,19 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
             <button data-view="probs" onclick="switchView('probs')">→ Ticket</button>
   </nav>
-  <select id="view-select" onchange="switchView(this.value)" title="Aller à un onglet">
-    <option value="pilot">Pilotage</option>
-    <option value="rent">Rentabilité</option>
-    <option value="perf" selected>Performance</option>
-    <option value="skip">SkipCall</option>
-    <option value="rdv">Notion</option>
-    <option value="probs">Ticket</option>
-  </select>
+  <div class="range-wrap" id="view-dd-wrap">
+    <button class="range-btn" id="view-dd-btn" onclick="toggleViewDD()">→ Performance</button>
+    <div class="range-pop" id="view-dd-pop">
+      <div class="nav" style="flex-direction:column;align-items:stretch">
+        <button data-view="pilot" onclick="switchView('pilot')">→ Pilotage</button>
+        <button data-view="rent" onclick="switchView('rent')">→ Rentabilité</button>
+        <button class="active" data-view="perf" onclick="switchView('perf')">→ Performance</button>
+        <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
+        <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
+        <button data-view="probs" onclick="switchView('probs')">→ Ticket</button>
+      </div>
+    </div>
+  </div>
   <div class="updated" id="updated"></div>
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Mode sombre / clair"><svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg><svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
 </header>
@@ -717,6 +722,10 @@ function updateRangeLabel(prefix){
 function toggleRange(prefix){
   document.querySelectorAll('.range-pop').forEach(p=>{if(p.id!==prefix+'-pop')p.classList.remove('open');});
   document.getElementById(prefix+'-pop').classList.toggle('open');
+}
+function toggleViewDD(){
+  document.querySelectorAll('.range-pop').forEach(p=>{if(p.id!=='view-dd-pop')p.classList.remove('open');});
+  document.getElementById('view-dd-pop').classList.toggle('open');
 }
 function applyRange(prefix){
   document.getElementById(prefix+'-pop').classList.remove('open');
@@ -1462,7 +1471,12 @@ function renderProblems(){
 
 function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
-  const sel=document.getElementById('view-select'); if(sel) sel.value=v;
+  const ddBtn=document.getElementById('view-dd-btn');
+  if(ddBtn){
+    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket'};
+    ddBtn.textContent='→ '+(ddLabels[v]||v);
+  }
+  const ddPop=document.getElementById('view-dd-pop'); if(ddPop) ddPop.classList.remove('open');
   ['perf','skip','pilot','probs','rdv','rent'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
   if(v==='rdv'&&!rdvRendered) renderRdv();
