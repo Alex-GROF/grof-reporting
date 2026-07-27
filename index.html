@@ -473,10 +473,10 @@ const RENT_SHEET_ID='1OzbdIceWcKrrkW44z0STVPpBCg3ahZJr';
 const RENT_TAB='02_Dashboard_Print';
 function fmtMoneyAbbrev(raw){
   const s=(raw||'').toString();
-  if(!s.includes('€')) return s.replace(/ /g,'\u00A0');
+  if(!s.includes('€')) return s;
   const clean=s.replace('€','').replace(/[\s\u00A0\u202F]/g,'').replace(',','.');
   const n=parseFloat(clean);
-  if(isNaN(n)) return s.replace(/ /g,'\u00A0');
+  if(isNaN(n)) return s;
   const abs=Math.abs(n);
   let out;
   if(abs>=1000000) out=(n/1000000).toFixed(1).replace(/\.0$/,'')+'\u00A0M';
