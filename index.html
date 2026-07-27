@@ -164,6 +164,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
   </div>
   <nav class="nav">
     <button data-view="pilot" onclick="switchView('pilot')">→ Pilotage</button>
+    <button data-view="rent" onclick="switchView('rent')">→ Rentabilité</button>
     <button class="active" data-view="perf" onclick="switchView('perf')">→ Performance</button>
     <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
     <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
@@ -336,6 +337,11 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     </div>
   </section>
 
+  <!-- VUE RENTABILITE (Google Sheet Head of Delivery, onglet 02_Dashboard_Print) -->
+  <section id="view-rent" style="display:none">
+    <div id="rent-box"></div>
+  </section>
+
   <!-- VUE PROBLEMES -->
   <section id="view-probs" style="display:none">
     <div class="panel" style="margin-bottom:20px">
@@ -454,6 +460,70 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKpABW40iDncw1litKx
 const PEOPLE = ['Matteo','Alix','Luca','Jennifer','Alexis','Idriss'];
 const PROBLEM_SHEETS = ['Problèmes','Problemes','Problématiques','Problematiques'];
 const OBJECTIFS_RDV = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':10,'MOGADOR':10,'Be Signal':10,'KOM':10}; // objectifs mensuels
+// --- Rentabilité (Google Sheet Head of Delivery, onglet 02_Dashboard_Print) ---
+const RENT_SHEET_ID='1OzbdIceWcKrrkW44z0STVPpBCg3ahZJr';
+const RENT_TAB='02_Dashboard_Print';
+function rentCsvUrl(){
+  return `https://docs.google.com/spreadsheets/d/${RENT_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(RENT_TAB)}`;
+}
+const RENT_MISSION_COLS=[
+  {label:'Client',num:false},{label:'Statut',num:false},{label:'Go/No-Go',num:false},
+  {label:'CA total',num:true},{label:'Marge nette',num:true},{label:'Delta dispo',num:true},
+  {label:'RDV nets',num:true},{label:'Pipeline',num:true},{label:'CA signé',num:true},
+  {label:'Risque',num:false}
+];
+let rentInit=false;
+async function loadRentabilite(){
+  rentInit=true;
+  const box=document.getElementById('rent-box');
+  box.innerHTML='<div class="msg"><div class="spinner"></div>Chargement du dashboard rentabilité…</div>';
+  try{
+    const r=await fetch(rentCsvUrl());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const text=await r.text();
+    if(/<html|<!DOCTYPE/i.test(text)) throw new Error('accès au Sheet refusé (vérifie le partage)');
+    const rows=parseCSV(text).filter(row=>row.some(c=>c.trim()!==''));
+    if(!rows.length) throw new Error('onglet '+RENT_TAB+' vide');
+    const missionHeaderIdx=rows.findIndex(row=>(row[0]||'').trim()==='Client');
+    const kpis=[];
+    const kpiEnd=missionHeaderIdx>=0?missionHeaderIdx:rows.length;
+    for(let i=1;i<kpiEnd;i++){
+      const row=rows[i]; if(!row) continue;
+      if((row[0]||'').trim() && (row[1]||'').trim()!=='') kpis.push({label:row[0].trim(),value:row[1].trim()});
+      if((row[2]||'').trim() && (row[3]||'').trim()!=='') kpis.push({label:row[2].trim(),value:row[3].trim()});
+    }
+    const missions=[]; const alerts=[];
+    if(missionHeaderIdx>=0){
+      let i=missionHeaderIdx+1;
+      while(i<rows.length && (rows[i][0]||'').trim() && (rows[i][0]||'').trim()!=='ALERTES À TRAITER'){ missions.push(rows[i]); i++; }
+      let alertHeaderIdx=-1;
+      for(let j=i;j<rows.length;j++){ if((rows[j][0]||'').trim()==='Type'){alertHeaderIdx=j;break;} }
+      if(alertHeaderIdx>=0){
+        let k=alertHeaderIdx+1;
+        while(k<rows.length && (rows[k][0]||'').trim()){ alerts.push(rows[k]); k++; }
+      }
+    }
+    renderRentabilite({kpis,missions,alerts});
+  }catch(e){
+    box.innerHTML='<div class="msg"><div class="big">Impossible de charger le dashboard</div>'+esc(String(e.message||e))+'</div>';
+  }
+}
+function renderRentabilite(d){
+  const box=document.getElementById('rent-box');
+  let h='<div class="note" style="margin-bottom:14px">Données en direct depuis l\'onglet <b>'+esc(RENT_TAB)+'</b> du <a href="https://docs.google.com/spreadsheets/d/'+RENT_SHEET_ID+'/edit" target="_blank" style="color:var(--red);font-weight:700">Google Sheet ↗</a></div>';
+  if(d.kpis.length) h+='<div class="kpis">'+d.kpis.map(k=>`<div class="kpi"><div class="v">${esc(k.value)}</div><div class="l">${esc(k.label)}</div></div>`).join('')+'</div>';
+  h+='<div class="grid">';
+  h+='<div class="panel full"><h3>→ Missions</h3><div style="overflow-x:auto"><table><thead><tr>'
+    + RENT_MISSION_COLS.map(c=>`<th${c.num?' class="num"':''}>${esc(c.label)}</th>`).join('')
+    + '</tr></thead><tbody>'
+    + (d.missions.length ? d.missions.map(row=>'<tr>'+RENT_MISSION_COLS.map((c,i)=>`<td${c.num?' class="num"':''}>${esc(row[i]||'')}</td>`).join('')+'</tr>').join('') : `<tr><td colspan="${RENT_MISSION_COLS.length}" style="color:var(--grey)">Aucune mission renseignée.</td></tr>`)
+    + '</tbody></table></div></div>';
+  h+='<div class="panel full"><h3>→ Alertes à traiter</h3><div style="overflow-x:auto"><table><thead><tr><th>Type</th><th>Mission</th><th>Alerte</th></tr></thead><tbody>'
+    + (d.alerts.length ? d.alerts.map(row=>`<tr><td>${esc(row[0]||'')}</td><td>${esc(row[1]||'')}</td><td>${esc(row[2]||'')}</td></tr>`).join('') : '<tr><td colspan="3" style="color:var(--grey)">Aucune alerte à traiter.</td></tr>')
+    + '</tbody></table></div></div>';
+  h+='</div>';
+  box.innerHTML=h;
+}
 // Google Sheets « Préparatoires » (jours travaillés) — onglet Récap par personne
 const PREPARATOIRES = {
   'Alexis':{id:'1fU0N6Z1N7GaHGEkR-W1P-iQ7l5DrFB-Zq5kVnsIfKYc',gid:774627728},
@@ -1384,11 +1454,12 @@ function renderProblems(){
 
 function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
-  ['perf','skip','pilot','probs','rdv'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
+  ['perf','skip','pilot','probs','rdv','rent'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
   if(v==='rdv'&&!rdvRendered) renderRdv();
   if(v==='skip'&&scSequences===null) initSkip();
   if(v==='pilot'&&!pilotInit) initPilot();
+  if(v==='rent'&&!rentInit) loadRentabilite();
 }
 
 // --- Pilotage (RDV validés/invalidés via Notion : branchement ultérieur) ---
