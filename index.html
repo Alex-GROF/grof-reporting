@@ -471,6 +471,19 @@ const OBJECTIFS_RDV = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':
 // --- Rentabilité (Google Sheet Head of Delivery, onglet 02_Dashboard_Print) ---
 const RENT_SHEET_ID='1OzbdIceWcKrrkW44z0STVPpBCg3ahZJr';
 const RENT_TAB='02_Dashboard_Print';
+function fmtMoneyAbbrev(raw){
+  const s=(raw||'').toString();
+  if(!s.includes('€')) return s.replace(/ /g,'\u00A0');
+  const clean=s.replace('€','').replace(/[\s\u00A0\u202F]/g,'').replace(',','.');
+  const n=parseFloat(clean);
+  if(isNaN(n)) return s.replace(/ /g,'\u00A0');
+  const abs=Math.abs(n);
+  let out;
+  if(abs>=1000000) out=(n/1000000).toFixed(1).replace(/\.0$/,'')+'\u00A0M';
+  else if(abs>=1000) out=(n/1000).toFixed(1).replace(/\.0$/,'')+'\u00A0K';
+  else out=String(n);
+  return out+'\u00A0€';
+}
 function rentCsvUrl(){
   return `https://docs.google.com/spreadsheets/d/${RENT_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(RENT_TAB)}`;
 }
@@ -519,12 +532,12 @@ async function loadRentabilite(){
 function renderRentabilite(d){
   const box=document.getElementById('rent-box');
   let h='<div class="note" style="margin-bottom:14px">Données en direct depuis l\'onglet <b>'+esc(RENT_TAB)+'</b> du <a href="https://docs.google.com/spreadsheets/d/'+RENT_SHEET_ID+'/edit" target="_blank" style="color:var(--red);font-weight:700">Google Sheet ↗</a></div>';
-  if(d.kpis.length) h+='<div class="kpis">'+d.kpis.map(k=>`<div class="kpi"><div class="v">${esc(k.value.replace(/ /g,'\u00A0'))}</div><div class="l">${esc(k.label)}</div></div>`).join('')+'</div>';
+  if(d.kpis.length) h+='<div class="kpis">'+d.kpis.map(k=>`<div class="kpi"><div class="v">${esc(fmtMoneyAbbrev(k.value))}</div><div class="l">${esc(k.label)}</div></div>`).join('')+'</div>';
   h+='<div class="grid">';
   h+='<div class="panel full"><h3>→ Missions</h3><div style="overflow-x:auto"><table><thead><tr>'
     + RENT_MISSION_COLS.map(c=>`<th${c.num?' class="num"':''}>${esc(c.label)}</th>`).join('')
     + '</tr></thead><tbody>'
-    + (d.missions.length ? d.missions.map(row=>'<tr>'+RENT_MISSION_COLS.map((c,i)=>`<td${c.num?' class="num"':''}>${esc((row[i]||'').replace(/ /g,'\u00A0'))}</td>`).join('')+'</tr>').join('') : `<tr><td colspan="${RENT_MISSION_COLS.length}" style="color:var(--grey)">Aucune mission renseignée.</td></tr>`)
+    + (d.missions.length ? d.missions.map(row=>'<tr>'+RENT_MISSION_COLS.map((c,i)=>`<td${c.num?' class="num"':''}>${esc(fmtMoneyAbbrev(row[i]||''))}</td>`).join('')+'</tr>').join('') : `<tr><td colspan="${RENT_MISSION_COLS.length}" style="color:var(--grey)">Aucune mission renseignée.</td></tr>`)
     + '</tbody></table></div></div>';
   h+='<div class="panel full"><h3>→ Alertes à traiter</h3><div style="overflow-x:auto"><table><thead><tr><th>Type</th><th>Mission</th><th>Alerte</th></tr></thead><tbody>'
     + (d.alerts.length ? d.alerts.map(row=>`<tr><td>${esc(row[0]||'')}</td><td>${esc(row[1]||'')}</td><td>${esc(row[2]||'')}</td></tr>`).join('') : '<tr><td colspan="3" style="color:var(--grey)">Aucune alerte à traiter.</td></tr>')
