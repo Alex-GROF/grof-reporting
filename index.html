@@ -650,9 +650,18 @@ async function loadAll(){
       const mission=canonMission((r[0]||'').trim().toUpperCase());
       if(mission){lastMission=mission;allMissions.add(mission);}
       const hasData=(r[2]||'').trim()!==''||(r[3]||'').trim()!==''||(r[4]||'').trim()!==''||(r[5]||'').trim()!=='';
-      if(!hasData) continue;
-      rows.push({person, mission: mission||lastMission||'Non renseignée', date:d,
-        dur:num(r[2]), calls:num(r[3]), conn:num(r[4]), rdv:num(r[5]), noshow:num(r[6]), reprog:num(r[7])});
+      if(hasData){
+        rows.push({person, mission: mission||lastMission||'Non renseignée', date:d,
+          dur:num(r[2]), calls:num(r[3]), conn:num(r[4]), rdv:num(r[5]), noshow:num(r[6]), reprog:num(r[7])});
+      }
+      // deuxième client prospecté le même jour (colonnes R à X)
+      const mission2=canonMission((r[17]||'').trim().toUpperCase());
+      const hasData2=(r[18]||'').trim()!==''||(r[19]||'').trim()!==''||(r[20]||'').trim()!==''||(r[21]||'').trim()!=='';
+      if(mission2 && hasData2){
+        allMissions.add(mission2);
+        rows.push({person, mission: mission2, date:d,
+          dur:num(r[18]), calls:num(r[19]), conn:num(r[20]), rdv:num(r[21]), noshow:num(r[22]), reprog:num(r[23])});
+      }
     }
   });
   rows.sort((a,b)=>a.date-b.date);
