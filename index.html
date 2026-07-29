@@ -1570,15 +1570,16 @@ function fillHomeKpi(id,items){
 }
 function pollHomeData(){
   let tries=0;
+  const filled={perf:false,pilot:false,rent:false,skip:false,probs:false,rdv:false};
   const iv=setInterval(()=>{
     tries++;
-    let allDone=true;
     const kCalls=document.getElementById('k-calls');
-    if(kCalls&&kCalls.textContent!=='–'){
+    if(!filled.perf && kCalls&&kCalls.textContent!=='–'){
       fillHomeKpi('perf',[{v:kCalls.textContent,l:'Appels'},{v:document.getElementById('k-rdv').textContent,l:'RDV pris'},{v:document.getElementById('k-rdvrate').textContent,l:'Taux RDV'}]);
-    }else allDone=false;
+      filled.perf=true;
+    }
     const tpilot=document.getElementById('t-pilot');
-    if(tpilot&&tpilot.querySelectorAll('tbody tr').length){
+    if(!filled.pilot && tpilot&&tpilot.querySelectorAll('tbody tr').length){
       let rdvSum=0,valSum=0;
       tpilot.querySelectorAll('tbody tr').forEach(tr=>{
         const tds=tr.children;
@@ -1586,10 +1587,11 @@ function pollHomeData(){
         valSum+=parseFloat(((tds[2]&&tds[2].textContent)||'0').replace(/[^\d.-]/g,''))||0;
       });
       fillHomeKpi('pilot',[{v:rdvSum,l:'RDV pris'},{v:valSum,l:'Validés'}]);
-    }else allDone=false;
+      filled.pilot=true;
+    }
     const rentBox=document.getElementById('rent-box');
     const rentKpis=rentBox?rentBox.querySelectorAll('.kpis .kpi'):[];
-    if(rentKpis.length){
+    if(!filled.rent && rentKpis.length){
       let ca=null,pipeline=null;
       rentKpis.forEach(k=>{
         const lEl=k.querySelector('.l'), vEl=k.querySelector('.v');
@@ -1598,19 +1600,27 @@ function pollHomeData(){
         if(/PIPELINE/i.test(l)) pipeline=v;
       });
       fillHomeKpi('rent',[{v:ca||'–',l:'CA total'},{v:pipeline||'–',l:'Pipeline'}]);
-    }else allDone=false;
-    if(scSequences!==null){
+      filled.rent=true;
+    }
+    if(!filled.skip && scSequences!==null){
       const totalContacts=scSequences.reduce((a,s)=>a+(s.contacts||0),0);
       fillHomeKpi('skip',[{v:scSequences.length,l:'Séquences'},{v:totalContacts,l:'Contacts'}]);
-    }else allDone=false;
-    if(problems!==null){
+      filled.skip=true;
+    }
+    if(!filled.probs && problems!==null){
       fillHomeKpi('probs',[{v:__activeProbs.length,l:'Actifs'},{v:__doneProbs.length,l:'Effectués'}]);
-    }else allDone=false;
+      filled.probs=true;
+    }
     const totalRdvEl=document.querySelector('#rdv-kpis .kpi .v');
-    if(totalRdvEl){
+    if(!filled.rdv && totalRdvEl){
       fillHomeKpi('rdv',[{v:totalRdvEl.textContent,l:'Total RDV'}]);
-    }else allDone=false;
-    if(allDone||tries>16) clearInterval(iv);
+      filled.rdv=true;
+    }
+    const allDone=Object.values(filled).every(Boolean);
+    if(allDone||tries>40){
+      clearInterval(iv);
+      Object.keys(filled).forEach(id=>{ if(!filled[id]) fillHomeKpi(id,[{v:'–',l:'Indisponible'}]); });
+    }
   },500);
 }
 
