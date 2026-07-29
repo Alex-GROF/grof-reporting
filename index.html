@@ -186,11 +186,11 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 
 <main>
   <!-- VUE ACCUEIL -->
-  <section id="view-home" style="display:none">
+  <section id="view-home">
     <div id="home-box"></div>
   </section>
   <!-- VUE PERFORMANCE -->
-  <section id="view-perf">
+  <section id="view-perf" style="display:none">
     <div class="filters">
       <div class="filter"><label>Personne</label><select id="f-person" onchange="render()"></select></div>
       <div class="filter"><label>Mission</label><select id="f-mission" onchange="render()"></select></div>
@@ -1569,7 +1569,8 @@ function renderHomeSkeleton(){
   const presetBar='<div class="filters"><div class="filter"><label>Période (Performance &amp; Pilotage)</label><div class="seg" id="home-preset">'
     + presets.map(pr=>`<button data-p="${pr.p}" onclick="setHomePreset('${pr.p}')">${esc(pr.l)}</button>`).join('')
     + '</div></div></div>';
-  box.innerHTML=presetBar+'<div class="grid">'+cards.map(c=>
+  const essentielsPanel='<div class="panel" style="margin-bottom:24px"><h3 style="margin-bottom:14px">→ L\'essentiel</h3><div class="kpis" id="home-essentiels"><div class="kpi"><div class="v">…</div><div class="l">Chargement</div></div></div></div>';
+  box.innerHTML=presetBar+essentielsPanel+'<div class="grid">'+cards.map(c=>
     `<div class="panel"><h3 style="margin-bottom:14px">→ ${esc(c.title)}</h3><div class="kpis" id="home-kpi-${c.id}"><div class="kpi"><div class="v">…</div><div class="l">Chargement</div></div></div><button class="history-toggle" style="margin-top:14px" onclick="switchView('${c.view}')">→ Voir ${esc(c.title)}</button></div>`
   ).join('')+'</div>';
 }
@@ -1656,25 +1657,56 @@ function computeProbsKpi(){
 function computeRdvKpi(){
   const totalRdvEl=document.querySelector('#rdv-kpis .kpi .v');
   if(totalRdvEl){
-    return [{v:totalRdvEl.textContent,l:'Total RDV'}];
+    let reprog=null;
+    document.querySelectorAll('#rdv-kpis .kpi').forEach(k=>{
+      const lEl=k.querySelector('.l');
+      if(lEl && /reprogrammer/i.test(lEl.textContent)){
+        const vEl=k.querySelector('.v');
+        reprog=vEl?vEl.textContent:null;
+      }
+    });
+    return [{v:totalRdvEl.textContent,l:'Total RDV'},{v:reprog||'0',l:'À reprogrammer'}];
   }
   return null;
+}
+function findEssItem(items, labelRe){
+  if(!items) return null;
+  const it=items.find(x=>labelRe.test(x.l));
+  return it ? it.v : null;
+}
+function renderEssentiels(data){
+  const el=document.getElementById('home-essentiels');
+  if(!el) return;
+  const rows=[
+    {v:findEssItem(data.perf,/Appels/i), l:'Appels'},
+    {v:findEssItem(data.perf,/RDV pris/i), l:'RDV pris'},
+    {v:findEssItem(data.perf,/Taux RDV/i), l:'Taux RDV'},
+    {v:findEssItem(data.pilot,/Validés/i), l:'RDV validés'},
+    {v:findEssItem(data.rent,/CA total/i), l:'CA total'},
+    {v:findEssItem(data.rent,/Pipeline/i), l:'Pipeline'},
+    {v:findEssItem(data.rdv,/reprogrammer/i), l:'RDV à reprogrammer'},
+    {v:findEssItem(data.probs,/Actifs/i), l:'Tickets actifs'}
+  ];
+  el.innerHTML=rows.map(r=>`<div class="kpi"><div class="v">${esc(r.v!==null&&r.v!==undefined?String(r.v):'…')}</div><div class="l">${esc(r.l)}</div></div>`).join('');
 }
 function pollHomeData(){
   let tries=0;
   const computers={perf:computePerfKpi,pilot:computePilotKpi,rent:computeRentKpi,skip:computeSkipKpi,probs:computeProbsKpi,rdv:computeRdvKpi};
   const filled={perf:false,pilot:false,rent:false,skip:false,probs:false,rdv:false};
+  const data={};
   const iv=setInterval(()=>{
     tries++;
     Object.keys(computers).forEach(id=>{
       if(filled[id]) return;
       const items=computers[id]();
-      if(items){ fillHomeKpi(id,items); filled[id]=true; }
+      if(items){ fillHomeKpi(id,items); filled[id]=true; data[id]=items; }
     });
+    renderEssentiels(data);
     const allDone=Object.values(filled).every(Boolean);
     if(allDone||tries>40){
       clearInterval(iv);
       Object.keys(filled).forEach(id=>{ if(!filled[id]) fillHomeKpi(id,[{v:'–',l:'Indisponible'}]); });
+      renderEssentiels(data);
     }
   },500);
 }
@@ -2086,6 +2118,7 @@ function exportSkipPDF(){
 }
 
 loadAll().then(loadJours);
+switchView('home');
 </script>
 </body>
 </html>
