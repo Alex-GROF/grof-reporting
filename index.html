@@ -164,6 +164,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     <span class="tag">Reporting SDR</span>
   </div>
   <div class="header-right" style="display:flex;align-items:center;gap:16px;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)">
+  <button id="home-toggle" class="theme-toggle" onclick="switchView('home')" title="Accueil"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></button>
   <div class="range-wrap" id="view-dd-wrap">
     <button class="range-btn" id="view-dd-btn" onclick="toggleViewDD()">→ Performance</button>
     <div class="range-pop" id="view-dd-pop">
@@ -184,6 +185,10 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 </header>
 
 <main>
+  <!-- VUE ACCUEIL -->
+  <section id="view-home" style="display:none">
+    <div id="home-box"></div>
+  </section>
   <!-- VUE PERFORMANCE -->
   <section id="view-perf">
     <div class="filters">
@@ -623,6 +628,7 @@ let rows=[];      // {person, mission, date(Date), dur, calls, conn, rdv, noshow
 let allMissions=new Set();
 let gran='month';
 let problems=null;
+let homeInit=false;
 let probsHistoryOpen=false;
 let __activeProbs=[];
 let __doneProbs=[];
@@ -1520,16 +1526,92 @@ function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const ddBtn=document.getElementById('view-dd-btn');
   if(ddBtn){
-    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket'};
+    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket',home:'Accueil'};
     ddBtn.textContent='→ '+(ddLabels[v]||v);
   }
   const ddPop=document.getElementById('view-dd-pop'); if(ddPop) ddPop.classList.remove('open');
-  ['perf','skip','pilot','probs','rdv','rent'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
+  ['perf','skip','pilot','probs','rdv','rent','home'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
   if(v==='rdv'&&!rdvRendered) renderRdv();
   if(v==='skip'&&scSequences===null) initSkip();
   if(v==='pilot'&&!pilotInit) initPilot();
   if(v==='rent'&&!rentInit) loadRentabilite();
+  if(v==='home'&&!homeInit) loadHome();
+}
+
+function loadHome(){
+  homeInit=true;
+  if(!pilotInit) initPilot();
+  if(!rentInit) loadRentabilite();
+  if(scSequences===null) initSkip();
+  if(problems===null) loadProblems();
+  if(!rdvRendered) renderRdv();
+  renderHomeSkeleton();
+  pollHomeData();
+}
+function renderHomeSkeleton(){
+  const box=document.getElementById('home-box');
+  const cards=[
+    {id:'perf',title:'Performance',view:'perf'},
+    {id:'pilot',title:'Pilotage',view:'pilot'},
+    {id:'rent',title:'Rentabilité',view:'rent'},
+    {id:'skip',title:'SkipCall',view:'skip'},
+    {id:'probs',title:'Ticket',view:'probs'},
+    {id:'rdv',title:'Notion RDV',view:'rdv'}
+  ];
+  box.innerHTML='<div class="grid">'+cards.map(c=>
+    `<div class="panel"><h3 style="margin-bottom:14px">→ ${esc(c.title)}</h3><div class="kpis" id="home-kpi-${c.id}"><div class="kpi"><div class="v">…</div><div class="l">Chargement</div></div></div><button class="history-toggle" style="margin-top:14px" onclick="switchView('${c.view}')">→ Voir ${esc(c.title)}</button></div>`
+  ).join('')+'</div>';
+}
+function fillHomeKpi(id,items){
+  const el=document.getElementById('home-kpi-'+id);
+  if(!el) return;
+  el.innerHTML=items.map(it=>`<div class="kpi"><div class="v">${esc(String(it.v))}</div><div class="l">${esc(it.l)}</div></div>`).join('');
+}
+function pollHomeData(){
+  let tries=0;
+  const iv=setInterval(()=>{
+    tries++;
+    let allDone=true;
+    const kCalls=document.getElementById('k-calls');
+    if(kCalls&&kCalls.textContent!=='–'){
+      fillHomeKpi('perf',[{v:kCalls.textContent,l:'Appels'},{v:document.getElementById('k-rdv').textContent,l:'RDV pris'},{v:document.getElementById('k-rdvrate').textContent,l:'Taux RDV'}]);
+    }else allDone=false;
+    const tpilot=document.getElementById('t-pilot');
+    if(tpilot&&tpilot.querySelectorAll('tbody tr').length){
+      let rdvSum=0,valSum=0;
+      tpilot.querySelectorAll('tbody tr').forEach(tr=>{
+        const tds=tr.children;
+        rdvSum+=parseFloat(((tds[1]&&tds[1].textContent)||'0').replace(/[^\d.-]/g,''))||0;
+        valSum+=parseFloat(((tds[2]&&tds[2].textContent)||'0').replace(/[^\d.-]/g,''))||0;
+      });
+      fillHomeKpi('pilot',[{v:rdvSum,l:'RDV pris'},{v:valSum,l:'Validés'}]);
+    }else allDone=false;
+    const rentBox=document.getElementById('rent-box');
+    const rentKpis=rentBox?rentBox.querySelectorAll('.kpis .kpi'):[];
+    if(rentKpis.length){
+      let ca=null,pipeline=null;
+      rentKpis.forEach(k=>{
+        const lEl=k.querySelector('.l'), vEl=k.querySelector('.v');
+        const l=lEl?lEl.textContent:'', v=vEl?vEl.textContent:'';
+        if(/CA TOTAL/i.test(l)) ca=v;
+        if(/PIPELINE/i.test(l)) pipeline=v;
+      });
+      fillHomeKpi('rent',[{v:ca||'–',l:'CA total'},{v:pipeline||'–',l:'Pipeline'}]);
+    }else allDone=false;
+    if(scSequences!==null){
+      const totalContacts=scSequences.reduce((a,s)=>a+(s.contacts||0),0);
+      fillHomeKpi('skip',[{v:scSequences.length,l:'Séquences'},{v:totalContacts,l:'Contacts'}]);
+    }else allDone=false;
+    if(problems!==null){
+      fillHomeKpi('probs',[{v:__activeProbs.length,l:'Actifs'},{v:__doneProbs.length,l:'Effectués'}]);
+    }else allDone=false;
+    if(rdvRendered){
+      const totalRdv=document.querySelector('#rdv-kpis .kpi .v');
+      fillHomeKpi('rdv',[{v:totalRdv?totalRdv.textContent:'–',l:'Total RDV'}]);
+    }else allDone=false;
+    if(allDone||tries>16) clearInterval(iv);
+  },500);
 }
 
 // --- Pilotage (RDV validés/invalidés via Notion : branchement ultérieur) ---
