@@ -126,7 +126,7 @@ footer{text-align:center;padding:24px;color:var(--grey);font-size:12px;border-to
 footer a{color:var(--red);text-decoration:none;font-weight:700}
 .updated{font-size:12px;color:var(--grey)}
 .updated b{color:var(--black)}
-@media(max-width:900px){.grid{grid-template-columns:1fr}main{padding:20px 16px 60px}header{padding:16px}}@media(max-width:900px){.header-right{position:static;left:auto;top:auto;transform:none;width:100%;justify-content:center;flex-wrap:wrap;order:3}}
+@media(max-width:900px){.grid{grid-template-columns:1fr}main{padding:20px 16px 60px}header{padding:16px}.range-pop{left:50%;transform:translateX(-50%);width:min(90vw,320px)}}@media(max-width:900px){.header-right{position:static;left:auto;top:auto;transform:none;width:100%;justify-content:center;flex-wrap:wrap;order:3}}body.view-mobile .grid{grid-template-columns:1fr}body.view-mobile main{padding:20px 16px 60px}body.view-mobile header{padding:16px}body.view-mobile .range-pop{left:50%;transform:translateX(-50%);width:min(90vw,320px)}body.view-mobile .header-right{position:static;left:auto;top:auto;transform:none;width:100%;justify-content:center;flex-wrap:wrap;order:3}body.view-pc .grid{grid-template-columns:1fr 1fr}body.view-pc main{padding:28px 32px 80px}body.view-pc header{padding:18px 32px}body.view-pc .range-pop{left:0;transform:none;width:auto}body.view-pc .header-right{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:auto;justify-content:flex-start;flex-wrap:nowrap}
 
 .rdv-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
 .rdv-col{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;min-width:220px;max-width:220px;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.04)}
@@ -178,6 +178,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
     </div>
   </div>
   <div class="updated" id="updated"></div>
+  <button id="view-toggle" class="theme-toggle" onclick="toggleViewMode()" title="Vue PC / Mobile"><svg id="view-icon-pc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><svg id="view-icon-mobile" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg></button>
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Mode sombre / clair"><svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg><svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
   </div>
 </header>
@@ -564,6 +565,17 @@ function applyTheme(dark){
 }
 function toggleTheme(){ applyTheme(!document.body.classList.contains('dark')); }
 applyTheme((function(){ try{ return localStorage.getItem('grof-theme') === 'dark'; }catch(e){ return false; } })());
+function applyViewMode(mobile){
+  document.body.classList.toggle('view-mobile', mobile);
+  document.body.classList.toggle('view-pc', !mobile);
+  const pcIcon=document.getElementById('view-icon-pc');
+  const mobileIcon=document.getElementById('view-icon-mobile');
+  if(pcIcon) pcIcon.style.display = mobile ? 'none' : '';
+  if(mobileIcon) mobileIcon.style.display = mobile ? '' : 'none';
+  try{ localStorage.setItem('grof-view-mode', mobile ? 'mobile' : 'pc'); }catch(e){}
+}
+function toggleViewMode(){ applyViewMode(!document.body.classList.contains('view-mobile')); }
+applyViewMode((function(){ try{ const v=localStorage.getItem('grof-view-mode'); if(v) return v==='mobile'; }catch(e){} return window.innerWidth<=900; })());
 const NOTION_RDV=[["2025-02","DCUBE","inval","Autre",1],["2025-02","DCUBE","inval","Matteo",1],["2025-03","DCUBE","inval","Autre",1],["2025-04","DCUBE","inval","Autre",2],["2025-04","DCUBE","inval","Matteo",1],["2025-05","DCUBE","inval","Autre",2],["2025-06","DCUBE","inval","Autre",2],["2025-06","DCUBE","inval","Matteo",4],["2025-08","DCUBE","inval","Autre",1],["2025-08","DCUBE","inval","Matteo",1],["2025-09","DCUBE","inval","Alexis",1],["2025-09","DCUBE","inval","Matteo",3],["2025-10","DCUBE","inval","Alexis",2],["2026-01","DCUBE","inval","Autre",4],["2026-02","DCUBE","inval","Alexis",3],["2026-02","DCUBE","inval","Louis",1],["2026-03","DCUBE","inval","Alexis",1],["2026-03","DCUBE","inval","Louis",3],["2026-05","DCUBE","val","Louis",1],["2025-09","MOGADOR","inval","Alexis",1],["2025-10","MOGADOR","inval","Alix",4],["2025-12","MOGADOR","inval","Alix",3],["2026-01","MOGADOR","inval","Alix",2],["2026-02","MOGADOR","inval","Alexis",2],["2026-03","MOGADOR","inval","Alix",2],["2026-03","MOGADOR","val","Alix",1],["2026-04","MOGADOR","inval","Alix",1],["2026-04","MOGADOR","val","Alix",1],["2026-05","MOGADOR","val","Alix",3],["2026-06","MOGADOR","inval","Alix",1],["2026-02","GROF","inval","Idriss",1],["2026-02","GROF","inval","Alix",1],["2026-02","GROF","val","Alix",2],["2026-04","GROF","val","Idriss",1],["2026-05","GROF","inval","Idriss",1],["2026-05","GROF","val","Idriss",1],["2026-06","GROF","val","Alix",2],["2026-06","GROF","val","Alexis",1],["2026-06","GROF","val","Matteo",4],["2026-06","HARVEN","inval","Matteo",1],["2026-06","HARVEN","val","Matteo",1],["2026-07","ZBO","val","Alix",3],["2026-05","SPECTRUM","inval","Louis",1],["2026-06","SPECTRUM","val","Jennifer",1],["2026-07","SPECTRUM","val","Jennifer",1]];
 const NOTION_SNAPSHOT='20/07/2026';
 const RECORDS_EMBED={ // records SkipCall depuis le 01/01/2026 (snapshot 20/07/2026)
