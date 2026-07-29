@@ -1600,6 +1600,15 @@ function setHomePreset(p){
 
   const perfItems=computePerfKpi(); if(perfItems) fillHomeKpi('perf',perfItems);
   const pilotItems=computePilotKpi(); if(pilotItems) fillHomeKpi('pilot',pilotItems);
+
+  renderEssentiels({
+    perf: perfItems,
+    pilot: pilotItems,
+    rent: computeRentKpi(),
+    skip: computeSkipKpi(),
+    probs: computeProbsKpi(),
+    rdv: computeRdvKpi()
+  });
 }
 function fillHomeKpi(id,items){
   const el=document.getElementById('home-kpi-'+id);
