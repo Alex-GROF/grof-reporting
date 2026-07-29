@@ -1606,9 +1606,9 @@ function pollHomeData(){
     if(problems!==null){
       fillHomeKpi('probs',[{v:__activeProbs.length,l:'Actifs'},{v:__doneProbs.length,l:'Effectués'}]);
     }else allDone=false;
-    if(rdvRendered){
-      const totalRdv=document.querySelector('#rdv-kpis .kpi .v');
-      fillHomeKpi('rdv',[{v:totalRdv?totalRdv.textContent:'–',l:'Total RDV'}]);
+    const totalRdvEl=document.querySelector('#rdv-kpis .kpi .v');
+    if(totalRdvEl){
+      fillHomeKpi('rdv',[{v:totalRdvEl.textContent,l:'Total RDV'}]);
     }else allDone=false;
     if(allDone||tries>16) clearInterval(iv);
   },500);
