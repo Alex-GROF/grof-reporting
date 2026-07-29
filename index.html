@@ -1559,63 +1559,118 @@ function renderHomeSkeleton(){
     {id:'probs',title:'Ticket',view:'probs'},
     {id:'rdv',title:'Notion RDV',view:'rdv'}
   ];
-  box.innerHTML='<div class="grid">'+cards.map(c=>
+  const presets=[
+    {p:'yesterday',l:'Hier'},
+    {p:'today',l:"Aujourd'hui"},
+    {p:'week',l:'Cette semaine'},
+    {p:'lastweek',l:'Semaine dernière'},
+    {p:'month',l:'Ce mois-ci'}
+  ];
+  const presetBar='<div class="filters"><div class="filter"><label>Période (Performance &amp; Pilotage)</label><div class="seg" id="home-preset">'
+    + presets.map(pr=>`<button data-p="${pr.p}" onclick="setHomePreset('${pr.p}')">${esc(pr.l)}</button>`).join('')
+    + '</div></div></div>';
+  box.innerHTML=presetBar+'<div class="grid">'+cards.map(c=>
     `<div class="panel"><h3 style="margin-bottom:14px">→ ${esc(c.title)}</h3><div class="kpis" id="home-kpi-${c.id}"><div class="kpi"><div class="v">…</div><div class="l">Chargement</div></div></div><button class="history-toggle" style="margin-top:14px" onclick="switchView('${c.view}')">→ Voir ${esc(c.title)}</button></div>`
   ).join('')+'</div>';
+}
+function setHomePreset(p){
+  const now=new Date(); now.setHours(0,0,0,0);
+  let from=new Date(now), to=new Date(now);
+  if(p==='yesterday'){from.setDate(from.getDate()-1); to=new Date(from);}
+  else if(p==='week'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day);}
+  else if(p==='lastweek'){const day=(from.getDay()+6)%7; from.setDate(from.getDate()-day-7); to=new Date(from); to.setDate(to.getDate()+6);}
+  else if(p==='month'){from=new Date(now.getFullYear(),now.getMonth(),1);}
+  const fromIso=iso(from), toIso=iso(to);
+  document.querySelectorAll('#home-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+
+  document.getElementById('f-from').value=fromIso;
+  document.getElementById('f-to').value=toIso;
+  updateRangeLabel('f');
+  document.querySelectorAll('#f-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  gran='day';
+  document.querySelectorAll('#f-gran button').forEach(b=>b.classList.toggle('active',b.dataset.g===gran));
+  render();
+
+  document.getElementById('pl-from').value=fromIso;
+  document.getElementById('pl-to').value=toIso;
+  updateRangeLabel('pl');
+  document.querySelectorAll('#pl-preset button').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  renderPilot();
+
+  const perfItems=computePerfKpi(); if(perfItems) fillHomeKpi('perf',perfItems);
+  const pilotItems=computePilotKpi(); if(pilotItems) fillHomeKpi('pilot',pilotItems);
 }
 function fillHomeKpi(id,items){
   const el=document.getElementById('home-kpi-'+id);
   if(!el) return;
   el.innerHTML=items.map(it=>`<div class="kpi"><div class="v">${esc(String(it.v))}</div><div class="l">${esc(it.l)}</div></div>`).join('');
 }
+function computePerfKpi(){
+  const kCalls=document.getElementById('k-calls');
+  if(kCalls&&kCalls.textContent!=='–'){
+    return [{v:kCalls.textContent,l:'Appels'},{v:document.getElementById('k-rdv').textContent,l:'RDV pris'},{v:document.getElementById('k-rdvrate').textContent,l:'Taux RDV'}];
+  }
+  return null;
+}
+function computePilotKpi(){
+  const tpilot=document.getElementById('t-pilot');
+  if(tpilot&&tpilot.querySelectorAll('tbody tr').length){
+    let rdvSum=0,valSum=0;
+    tpilot.querySelectorAll('tbody tr').forEach(tr=>{
+      const tds=tr.children;
+      rdvSum+=parseFloat(((tds[1]&&tds[1].textContent)||'0').replace(/[^\d.-]/g,''))||0;
+      valSum+=parseFloat(((tds[2]&&tds[2].textContent)||'0').replace(/[^\d.-]/g,''))||0;
+    });
+    return [{v:rdvSum,l:'RDV pris'},{v:valSum,l:'Validés'}];
+  }
+  return null;
+}
+function computeRentKpi(){
+  const rentBox=document.getElementById('rent-box');
+  const rentKpis=rentBox?rentBox.querySelectorAll('.kpis .kpi'):[];
+  if(rentKpis.length){
+    let ca=null,pipeline=null;
+    rentKpis.forEach(k=>{
+      const lEl=k.querySelector('.l'), vEl=k.querySelector('.v');
+      const l=lEl?lEl.textContent:'', v=vEl?vEl.textContent:'';
+      if(/CA TOTAL/i.test(l)) ca=v;
+      if(/PIPELINE/i.test(l)) pipeline=v;
+    });
+    return [{v:ca||'–',l:'CA total'},{v:pipeline||'–',l:'Pipeline'}];
+  }
+  return null;
+}
+function computeSkipKpi(){
+  if(scSequences!==null){
+    const totalContacts=scSequences.reduce((a,s)=>a+(s.contacts||0),0);
+    return [{v:scSequences.length,l:'Séquences'},{v:totalContacts,l:'Contacts'}];
+  }
+  return null;
+}
+function computeProbsKpi(){
+  if(problems!==null){
+    return [{v:__activeProbs.length,l:'Actifs'},{v:__doneProbs.length,l:'Effectués'}];
+  }
+  return null;
+}
+function computeRdvKpi(){
+  const totalRdvEl=document.querySelector('#rdv-kpis .kpi .v');
+  if(totalRdvEl){
+    return [{v:totalRdvEl.textContent,l:'Total RDV'}];
+  }
+  return null;
+}
 function pollHomeData(){
   let tries=0;
+  const computers={perf:computePerfKpi,pilot:computePilotKpi,rent:computeRentKpi,skip:computeSkipKpi,probs:computeProbsKpi,rdv:computeRdvKpi};
   const filled={perf:false,pilot:false,rent:false,skip:false,probs:false,rdv:false};
   const iv=setInterval(()=>{
     tries++;
-    const kCalls=document.getElementById('k-calls');
-    if(!filled.perf && kCalls&&kCalls.textContent!=='–'){
-      fillHomeKpi('perf',[{v:kCalls.textContent,l:'Appels'},{v:document.getElementById('k-rdv').textContent,l:'RDV pris'},{v:document.getElementById('k-rdvrate').textContent,l:'Taux RDV'}]);
-      filled.perf=true;
-    }
-    const tpilot=document.getElementById('t-pilot');
-    if(!filled.pilot && tpilot&&tpilot.querySelectorAll('tbody tr').length){
-      let rdvSum=0,valSum=0;
-      tpilot.querySelectorAll('tbody tr').forEach(tr=>{
-        const tds=tr.children;
-        rdvSum+=parseFloat(((tds[1]&&tds[1].textContent)||'0').replace(/[^\d.-]/g,''))||0;
-        valSum+=parseFloat(((tds[2]&&tds[2].textContent)||'0').replace(/[^\d.-]/g,''))||0;
-      });
-      fillHomeKpi('pilot',[{v:rdvSum,l:'RDV pris'},{v:valSum,l:'Validés'}]);
-      filled.pilot=true;
-    }
-    const rentBox=document.getElementById('rent-box');
-    const rentKpis=rentBox?rentBox.querySelectorAll('.kpis .kpi'):[];
-    if(!filled.rent && rentKpis.length){
-      let ca=null,pipeline=null;
-      rentKpis.forEach(k=>{
-        const lEl=k.querySelector('.l'), vEl=k.querySelector('.v');
-        const l=lEl?lEl.textContent:'', v=vEl?vEl.textContent:'';
-        if(/CA TOTAL/i.test(l)) ca=v;
-        if(/PIPELINE/i.test(l)) pipeline=v;
-      });
-      fillHomeKpi('rent',[{v:ca||'–',l:'CA total'},{v:pipeline||'–',l:'Pipeline'}]);
-      filled.rent=true;
-    }
-    if(!filled.skip && scSequences!==null){
-      const totalContacts=scSequences.reduce((a,s)=>a+(s.contacts||0),0);
-      fillHomeKpi('skip',[{v:scSequences.length,l:'Séquences'},{v:totalContacts,l:'Contacts'}]);
-      filled.skip=true;
-    }
-    if(!filled.probs && problems!==null){
-      fillHomeKpi('probs',[{v:__activeProbs.length,l:'Actifs'},{v:__doneProbs.length,l:'Effectués'}]);
-      filled.probs=true;
-    }
-    const totalRdvEl=document.querySelector('#rdv-kpis .kpi .v');
-    if(!filled.rdv && totalRdvEl){
-      fillHomeKpi('rdv',[{v:totalRdvEl.textContent,l:'Total RDV'}]);
-      filled.rdv=true;
-    }
+    Object.keys(computers).forEach(id=>{
+      if(filled[id]) return;
+      const items=computers[id]();
+      if(items){ fillHomeKpi(id,items); filled[id]=true; }
+    });
     const allDone=Object.values(filled).every(Boolean);
     if(allDone||tries>40){
       clearInterval(iv);
