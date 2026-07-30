@@ -629,6 +629,7 @@ let allMissions=new Set();
 let gran='month';
 let problems=null;
 let homeInit=false;
+let homeData={};
 let probsHistoryOpen=false;
 let __activeProbs=[];
 let __doneProbs=[];
@@ -1601,14 +1602,13 @@ function setHomePreset(p){
   const perfItems=computePerfKpi(); if(perfItems) fillHomeKpi('perf',perfItems);
   const pilotItems=computePilotKpi(); if(pilotItems) fillHomeKpi('pilot',pilotItems);
 
-  renderEssentiels({
-    perf: perfItems,
-    pilot: pilotItems,
-    rent: computeRentKpi(),
-    skip: computeSkipKpi(),
-    probs: computeProbsKpi(),
-    rdv: computeRdvKpi()
-  });
+  homeData.perf=perfItems;
+  homeData.pilot=pilotItems;
+  homeData.rent=computeRentKpi();
+  homeData.skip=computeSkipKpi();
+  homeData.probs=computeProbsKpi();
+  homeData.rdv=computeRdvKpi();
+  renderEssentiels(homeData);
 }
 function fillHomeKpi(id,items){
   const el=document.getElementById('home-kpi-'+id);
@@ -1702,20 +1702,19 @@ function pollHomeData(){
   let tries=0;
   const computers={perf:computePerfKpi,pilot:computePilotKpi,rent:computeRentKpi,skip:computeSkipKpi,probs:computeProbsKpi,rdv:computeRdvKpi};
   const filled={perf:false,pilot:false,rent:false,skip:false,probs:false,rdv:false};
-  const data={};
   const iv=setInterval(()=>{
     tries++;
     Object.keys(computers).forEach(id=>{
       if(filled[id]) return;
       const items=computers[id]();
-      if(items){ fillHomeKpi(id,items); filled[id]=true; data[id]=items; }
+      if(items){ fillHomeKpi(id,items); filled[id]=true; homeData[id]=items; }
     });
-    renderEssentiels(data);
+    renderEssentiels(homeData);
     const allDone=Object.values(filled).every(Boolean);
     if(allDone||tries>40){
       clearInterval(iv);
       Object.keys(filled).forEach(id=>{ if(!filled[id]) fillHomeKpi(id,[{v:'–',l:'Indisponible'}]); });
-      renderEssentiels(data);
+      renderEssentiels(homeData);
     }
   },500);
 }
