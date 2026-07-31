@@ -581,7 +581,7 @@ tr.pick td{background:rgba(254,11,0,.06)}
     <button id="g-go">▶ Lancer sans enregistrer</button>
   </div>
   <div class="hint" id="g-recinfo" style="margin-top:22px;color:#8a8a8a;letter-spacing:.4px;text-transform:none;font-size:14px;font-weight:600;max-width:820px;line-height:1.6">
-    Le navigateur va te demander quoi filmer : choisis <b style="color:#fff">l'onglet en cours</b>. L'enregistrement démarre, le tutoriel se lance, et le fichier se télécharge tout seul au bout de 7 min 55.
+    Le navigateur passe en plein écran puis te demande quoi filmer : choisis <b style="color:#fff">Écran entier</b> (pas un onglet). L'enregistrement démarre, le tutoriel se lance, et le fichier se télécharge tout seul au bout de 7 min 55.
   </div>
   <div class="hint">Plein écran : F · Pause : espace · Chapitre : ← → · Masquer la barre : H<br>La barre du bas disparaît toute seule et n'apparaît qu'au mouvement de souris</div>
 </div>
@@ -1298,10 +1298,11 @@ async function startRecording(){
     return;
   }
   let stream;
+  try{ await document.documentElement.requestFullscreen(); }catch(e){}
   try{
     stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: false, preferCurrentTab: true
+      video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 }, displaySurface: 'monitor' },
+      audio: false
     });
   }catch(e){
     console.warn('getDisplayMedia a échoué', e);
