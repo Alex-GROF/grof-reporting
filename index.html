@@ -467,6 +467,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 </main>
 
 <footer>© <span id="year"></span> GROF — Reporting SDR · Données : <a href="https://docs.google.com/spreadsheets/d/1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE/edit" target="_blank">Google Sheet ↗</a><div style="margin-top:12px"><a href="tuto.html" target="_blank" style="display:inline-block;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:11px;font-weight:700;color:var(--grey);text-decoration:none;letter-spacing:.3px">▶ Tuto</a></div></footer>
+<div style="position:fixed;right:14px;bottom:10px;font-size:10.5px;color:var(--grey);z-index:5;pointer-events:none">Créé par Alexis Dubos</div>
 
 <script>
 const SHEET_ID = '1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE';
@@ -474,6 +475,7 @@ const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKpABW40iDncw1litKx
 const PEOPLE = ['Matteo','Alix','Luca','Jennifer','Alexis','Idriss'];
 const PROBLEM_SHEETS = ['Problèmes','Problemes','Problématiques','Problematiques'];
 const OBJECTIFS_RDV = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':10,'MOGADOR':10,'Be Signal':10,'KOM':10}; // objectifs mensuels
+const mKey=s=>(s||'').trim().toUpperCase();
 // --- Rentabilité (Google Sheet Head of Delivery, onglet 02_Dashboard_Print) ---
 const RENT_SHEET_ID='1OzbdIceWcKrrkW44z0STVPpBCg3ahZJr';
 const RENT_TAB='02_Dashboard_Print';
@@ -612,7 +614,7 @@ function rdvInPeriod(from,to,mission,person){
     const mS=new Date(y,mo-1,1), mE=new Date(y,mo,0,23,59,59);
     if(from&&mE<from)return false;
     if(to&&mS>to)return false;
-    if(mission&&e[1]!==mission)return false;
+    if(mission&&mKey(e[1])!==mKey(mission))return false;
     if(person&&e[3]!==person)return false;
     return true;
   });
@@ -1010,11 +1012,12 @@ function render(){
     plugins:{legend:{labels:{usePointStyle:true,boxWidth:8}}}}});
 
   // Par mission
-  const byM={};
-  list.forEach(r=>{(byM[r.mission]=byM[r.mission]||[]).push(r);});
-  const mNames=Object.keys(byM);
+  const byM={}, byMLabel={};
+  list.forEach(r=>{const k=mKey(r.mission);(byM[k]=byM[k]||[]).push(r);if(!byMLabel[k])byMLabel[k]=r.mission;});
+  const mKeys=Object.keys(byM);
+  const mNames=mKeys.map(k=>byMLabel[k]);
   mkChart('c-mission',{type:'doughnut',data:{labels:mNames.length?mNames:['Aucune donnée'],datasets:[{
-    data:mNames.length?mNames.map(n=>agg(byM[n]).calls):[1],
+    data:mNames.length?mKeys.map(k=>agg(byM[k]).calls):[1],
     backgroundColor:mNames.length?mNames.map((_,i)=>PALETTE[i%PALETTE.length]):[BORDER],
     borderColor:'#FFFFFF',borderWidth:3
   }]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
@@ -1033,10 +1036,10 @@ function render(){
 
   // Objectifs de RDV par mission
   const rdvByM={};
-  list.forEach(r=>{rdvByM[r.mission]=(rdvByM[r.mission]||0)+r.rdv;});
+  list.forEach(r=>{const k=mKey(r.mission);rdvByM[k]=(rdvByM[k]||0)+r.rdv;});
   const tbo=document.querySelector('#t-obj tbody');
   tbo.innerHTML=Object.keys(OBJECTIFS_RDV).map(m=>{
-    const done=rdvByM[m]||0, obj=OBJECTIFS_RDV[m];
+    const done=rdvByM[mKey(m)]||0, obj=OBJECTIFS_RDV[m];
     const pctObj=100*done/obj, w=Math.min(100,pctObj);
     const color=done>=obj?'var(--green)':(pctObj>=50?'#F39C12':'var(--red)');
     return `<tr${done===0?' class="dim"':''}><td>${m}</td>
@@ -1844,11 +1847,16 @@ function renderPilot(){
   k('pl-val',fmtN(valT)); k('pl-inval',fmtN(invalT));
   k('pl-txval',(valT+invalT)>0?fmtPct(100*valT/(valT+invalT)):'–');
   // par mission
+  const mkKeyList=Object.keys(OBJECTIFS_RDV);
+  const byMLabel={};
+  mkKeyList.forEach(n=>{byMLabel[mKey(n)]=n;});
   const byM={};
-  list.forEach(r=>{(byM[r.mission]=byM[r.mission]||[]).push(r);});
-  const names=[...new Set([...Object.keys(OBJECTIFS_RDV),...Object.keys(byM),...nr.map(e=>e[1])])].sort();
-  document.querySelector('#t-pilot tbody').innerHTML=names.map(n=>{
-    const a=agg(byM[n]||[]);
+  list.forEach(r=>{const k=mKey(r.mission);(byM[k]=byM[k]||[]).push(r);if(!byMLabel[k])byMLabel[k]=r.mission;});
+  nr.forEach(e=>{const k=mKey(e[1]);if(!byMLabel[k])byMLabel[k]=e[1];});
+  const keys=[...new Set([...mkKeyList.map(mKey),...Object.keys(byM),...nr.map(e=>mKey(e[1]))])].sort((x,y)=>(byMLabel[x]||x).localeCompare(byMLabel[y]||y));
+  document.querySelector('#t-pilot tbody').innerHTML=keys.map(k=>{
+    const n=byMLabel[k]||k;
+    const a=agg(byM[k]||[]);
     const obj=OBJECTIFS_RDV[n];
     const av=obj?fmtPct(100*a.rdv/obj):'–';
     const nm=rdvInPeriod(from,to,n,null);
