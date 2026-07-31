@@ -968,7 +968,6 @@ act(() => card('c-in', false));
 /* ===================== CH1 · SOURCES ===================== */
 chapter(1, 'Les sources de données', "L'outil ne stocke rien. Il lit quatre sources et les affiche au même endroit.",
   () => { card('c-in', false); setView('home'); scrollTo(0, 200); });
-act(() => { el('chapcard').classList.add('on'); }, 200);
 say("Première chose à comprendre : cet outil n'est pas une base de données. Il ne stocke rien du tout. Il va chercher quatre sources et les affiche ensemble.");
 wait(1000);
 say("Un premier Google Sheet, un onglet par personne, où chaque SDR remplit sa journée. C'est ce qui alimente la vue Performance.");
@@ -976,7 +975,6 @@ wait(1000);
 say("Un deuxième Sheet, celui du Head of Delivery, pour la partie financière. L'API SkipCall pour le composeur. Et les bases Notion pour les rendez-vous.");
 wait(1000);
 say("Donc si un chiffre est faux ici, il est faux dans la source. On corrige dans le Sheet ou dans Notion, jamais dans l'outil.");
-act(() => el('chapcard').classList.remove('on'), 600);
 /* ===================== CH2 · BANDEAU + ACCUEIL ===================== */
 chapter(2, "Le bandeau et l'accueil", "Le menu commun à toutes les pages, puis la page d'entrée.",
   () => { setView('home'); scrollTo(0, 200); el('vpop').classList.remove('open'); });
