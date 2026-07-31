@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GROF — Reporting SDR · Tutoriel complet</title>
+<meta name="theme-color" content="#FE0B00">
+<style>
+:root{--red:#FE0B00;--black:#0A0A0A;--bg:#FAFAFA;--card:#FFF;--border:#E6E6E6;--grey:#6B6B6B;
+  --green:#1FA95C;--invert:#0A0A0A;--invert-text:#fff}
+#stage.dark{--bg:#101010;--card:#1B1B1B;--border:#303030;--black:#F0F0F0;--grey:#A5A5A5;
+  --invert:#F0F0F0;--invert-text:#0A0A0A}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#000;overflow:hidden}
+body{font-family:"HelveticaNowDisplay","Helvetica Neue",Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center}
+#viewport{position:relative;width:100vw;height:100vh;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center;
+  background:var(--bg);color:var(--black);overflow:hidden}
+#app{position:absolute;inset:0;overflow:hidden;background:var(--bg);transition:all .8s cubic-bezier(.5,0,.2,1)}
+#stage.mob #app{left:735px;width:450px;top:50px;height:980px;border:3px solid var(--black);
+  border-radius:38px;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+header{position:absolute;top:0;left:0;right:0;height:80px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 36px;border-bottom:1px solid var(--black);background:var(--bg);z-index:40}
+.brand{display:flex;align-items:center;gap:14px}
+.brand svg path{fill:var(--black)}
+.tag{font-size:11px;font-weight:700;letter-spacing:1.6px;color:var(--red);text-transform:uppercase;
+  border-left:1px solid var(--black);padding-left:12px}
+.hmid{display:flex;align-items:center;gap:14px}
+.ico{border:1px solid var(--black);color:var(--black);border-radius:10px;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--card)}
+.ico.on{background:var(--invert);color:var(--invert-text)}
+.vbtn{background:var(--invert);color:var(--invert-text);border:1px solid var(--invert);border-radius:12px;
+  padding:11px 18px;font-weight:700;font-size:14px;min-width:210px;text-align:left;position:relative}
+.vbtn::after{content:'▾';position:absolute;right:14px}
+.vpop{position:absolute;top:56px;left:0;background:var(--card);border:1px solid var(--black);
+  border-radius:14px;padding:10px;z-index:60;box-shadow:0 8px 26px rgba(0,0,0,.16);min-width:230px;
+  display:none;flex-direction:column;gap:7px}
+.vpop.open{display:flex}
+.vpop b{border:1px solid var(--black);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:700}
+.vpop b.act{background:var(--red);border-color:var(--red);color:#fff}
+.upd{font-size:12px;color:var(--grey);font-weight:600}
+.upd b{color:var(--black)}
+#vp{position:absolute;top:80px;left:0;right:0;bottom:0;overflow:hidden}
+#doc{position:absolute;top:0;left:0;right:0;padding:26px 36px 90px;will-change:transform}
+.view{display:none}.view.on{display:block}
+.filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:22px;position:relative}
+.filter label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+  color:var(--grey);margin-bottom:6px}
+.sel{background:var(--card);border:1px solid var(--black);color:var(--black);padding:10px 15px;
+  font-size:14px;font-weight:600;min-width:180px;border-radius:12px;position:relative}
+.sel::after{content:'▾';position:absolute;right:13px;color:var(--grey)}
+.seg{display:flex;border:1px solid var(--black);border-radius:12px;overflow:hidden}
+.seg button{background:none;border:none;color:var(--black);padding:10px 16px;font-family:inherit;
+  font-weight:700;font-size:13px}
+.seg button.active{background:var(--red);color:#fff}
+.rbtn{background:var(--card);border:1px solid var(--black);border-radius:12px;padding:10px 15px;
+  font-size:14px;font-weight:600;min-width:150px;text-align:left;color:var(--black)}
+.rbtn.dark{background:var(--invert);color:var(--invert-text);border-color:var(--invert);min-width:auto;font-weight:700}
+.btn-add{background:var(--red);border:none;color:#fff;border-radius:12px;padding:11px 22px;
+  font-family:inherit;font-weight:700;font-size:13px;display:inline-block}
+.pop{position:absolute;top:82px;background:var(--card);border:1px solid var(--black);border-radius:14px;
+  padding:14px;z-index:50;box-shadow:0 8px 26px rgba(0,0,0,.16);width:260px;display:none;flex-direction:column;gap:7px}
+.pop.open{display:flex}
+.pop label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
+.pop .f{border:1px solid var(--black);border-radius:12px;padding:9px 13px;font-size:14px;font-weight:600}
+.pop .f.hot{border-color:var(--red);color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:17px 19px;
+  position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--red)}
+.kpi .v{font-size:34px;font-weight:900;letter-spacing:-1.4px;line-height:1;margin-bottom:5px}
+.kpi .l{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey)}
+.kpi.rate .v{color:var(--red)}.kpi.gr .v{color:var(--green)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:12px}
+.panel h3{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:16px}
+.panel h3 em{color:var(--red);font-style:normal;font-weight:700;text-transform:none;letter-spacing:0}
+.note{font-size:13px;color:var(--grey);font-weight:600}
+.note a{color:var(--red);font-weight:700;text-decoration:none}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--grey);
+  padding:0 10px 9px;border-bottom:2px solid var(--black);font-weight:700}
+td{padding:10px;border-bottom:1px solid var(--border);font-weight:600}
+td.num,th.num{text-align:right}
+.bdg{color:var(--red);font-weight:900}.bdg.ok{color:var(--green)}
+.mini{background:var(--bg);border:1px solid var(--border);border-radius:6px;height:14px;overflow:hidden}
+.mini i{display:block;height:100%;background:var(--red);width:0;transition:width .9s cubic-bezier(.16,.84,.3,1)}
+.mini i.ok{background:var(--green)}
+.hbar{display:grid;grid-template-columns:210px 1fr 70px;gap:12px;align-items:center;margin-bottom:9px}
+.hbar span:first-child{font-size:14px;font-weight:700}
+.hbar .track{background:var(--bg);border:1px solid var(--border);border-radius:8px;height:20px;overflow:hidden}
+.hbar .fill{height:100%;background:var(--black);width:0;transition:width .9s cubic-bezier(.16,.84,.3,1)}
+.hbar .fill.success{background:var(--green)}.hbar .fill.neutral{background:#9A9A9A}
+.hbar .n{text-align:right;font-size:15px;font-weight:900}
+/* accueil */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.tile{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px}
+.tile h3{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:14px}
+.tile .kpis{grid-template-columns:1fr 1fr;margin-bottom:14px}
+.tile .kpi{padding:13px 14px}.tile .kpi .v{font-size:26px}
+.tile .go{border:1px solid var(--black);border-radius:12px;padding:9px 14px;font-size:12px;font-weight:700;
+  display:block;text-align:center}
+/* notion board */
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:11px}
+.col{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:13px}
+.col h4{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin-bottom:11px;
+  display:flex;align-items:center;gap:7px}
+.col h4 .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.col h4 .c{margin-left:auto;color:var(--grey)}
+.rc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 12px;
+  margin-bottom:7px;display:flex;justify-content:space-between;font-size:13px;font-weight:700}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.tab{border:1px solid var(--border);border-radius:20px;padding:7px 15px;font-size:12.5px;font-weight:700;color:var(--grey)}
+.tab.act{background:var(--red);border-color:var(--red);color:#fff}
+tr.pick td{background:rgba(254,11,0,.06)}
+/* formulaires */
+.pform{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.in{border:1px solid var(--black);border-radius:12px;padding:10px 14px;font-size:13.5px;font-weight:600;
+  background:var(--card);min-height:41px;display:flex;align-items:center}
+.in.ph{color:var(--grey)}.in.hot{border-color:var(--red)}
+.in.ta{min-height:62px;align-items:flex-start;padding-top:11px}
+.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:5px;display:block}
+.wide{grid-column:1/-1}
+/* tickets */
+.prob{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);
+  border-radius:14px;padding:18px 20px;margin-bottom:11px;position:relative}
+.prob.done{border-left-color:var(--green);opacity:.7}
+.mhead{font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1px;margin:16px 0 10px}
+.mhead .c{color:var(--grey);font-weight:700;text-transform:none;letter-spacing:0;font-size:12.5px}
+.meta{display:flex;gap:7px;margin-bottom:9px;flex-wrap:wrap}
+.meta .t{border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.9px;color:var(--grey)}
+.meta .t.st{border-color:var(--red);color:var(--red)}
+.meta .t.st.ok{border-color:var(--green);color:var(--green)}
+.prob h4{font-size:16px;font-weight:900;margin-bottom:9px}
+.prob .blk{margin-top:8px}
+.prob .blk b{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--red);margin-bottom:3px}
+.prob .blk p{font-size:13.5px;line-height:1.55;font-weight:600}
+.pacts{position:absolute;top:15px;right:15px;display:flex;gap:7px}
+.pacts span{border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--grey)}
+/* modale */
+#scrim{position:absolute;inset:0;background:rgba(10,10,10,.55);z-index:70;opacity:0;transition:.3s;pointer-events:none}
+#scrim.open{opacity:1}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-46%) scale(.97);z-index:80;
+  background:var(--card);border:1px solid var(--black);border-radius:16px;padding:26px 30px;width:720px;
+  opacity:0;transition:.35s cubic-bezier(.16,.84,.3,1);pointer-events:none}
+.modal.open{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.modal h3{font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:1.1px;margin-bottom:18px}
+#toast{position:absolute;right:36px;bottom:150px;z-index:90;background:var(--black);color:var(--bg);
+  border-radius:14px;padding:16px 22px;font-size:15px;font-weight:700;max-width:460px;line-height:1.45;
+  opacity:0;transform:translateY(14px);transition:.4s cubic-bezier(.16,.84,.3,1);box-shadow:0 12px 32px rgba(0,0,0,.3)}
+#toast.open{opacity:1;transform:none}
+#toast i{font-style:normal;color:var(--red);margin-right:7px}
+/* curseur */
+#cur{position:absolute;width:28px;height:28px;z-index:200;pointer-events:none;
+  transition:transform 1.3s cubic-bezier(.3,.9,.2,1);transform:translate(960px,540px)}
+#rip{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;z-index:190;border-radius:50%;
+  border:3px solid var(--red);opacity:0;pointer-events:none}
+@keyframes rip{0%{transform:scale(.2);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+#rip.go{animation:rip .5s ease-out}
+/* cartons */
+@keyframes up{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:none}}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes cut{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.card{position:absolute;inset:0;background:#000;color:#fff;z-index:300;display:none;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:0 170px}
+.card.on{display:flex}
+.card.on [data-a="up"]{opacity:0;animation:up .8s cubic-bezier(.16,.84,.3,1) forwards}
+.card.on [data-a="fade"]{opacity:0;animation:fade 1s ease forwards}
+.card.on [data-a="cut"]{opacity:0;animation:cut .9s cubic-bezier(.7,0,.2,1) forwards,fade .1s forwards}
+.card .k{font-size:14px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:var(--red)}
+.card .big{font-size:78px;font-weight:900;letter-spacing:-3.2px;line-height:1;margin:26px 0}
+.card .sub{font-size:21px;font-weight:600;color:#A5A5A5;max-width:1050px;line-height:1.55}
+.toc{display:grid;grid-template-columns:1fr 1fr;gap:11px 44px;margin-top:40px;text-align:left}
+.toc div{display:flex;gap:15px;font-size:19px;font-weight:700;border-bottom:1px solid #262626;padding-bottom:10px}
+.toc div s{text-decoration:none;color:var(--red);font-weight:900;min-width:30px}
+/* chapitre */
+#chapcard{position:absolute;inset:0;background:#000;color:#fff;z-index:290;display:none;
+  flex-direction:column;align-items:flex-start;justify-content:center;padding:0 170px}
+#chapcard.on{display:flex}
+#chapcard .n{font-size:15px;font-weight:700;letter-spacing:5px;color:var(--red);text-transform:uppercase}
+#chapcard .t{font-size:82px;font-weight:900;letter-spacing:-3.4px;margin-top:22px;line-height:1}
+#chapcard .d{font-size:22px;font-weight:600;color:#A5A5A5;margin-top:24px;max-width:1100px;line-height:1.5}
+#chapcard.on .n{opacity:0;animation:fade .6s ease forwards}
+#chapcard.on .t{opacity:0;animation:up .8s cubic-bezier(.16,.84,.3,1) .15s forwards}
+#chapcard.on .d{opacity:0;animation:fade .9s ease .5s forwards}
+/* sous-titres */
+#cap{position:absolute;left:36px;right:36px;bottom:108px;z-index:320;display:flex;justify-content:center;pointer-events:none}
+#cap b{background:rgba(10,10,10,.94);color:#fff;border-radius:14px;padding:15px 24px;font-size:21px;
+  font-weight:700;max-width:1340px;text-align:center;line-height:1.42;border:1px solid #303030;
+  opacity:0;transition:opacity .35s}
+#cap b.on{opacity:1}
+#cap b s{text-decoration:none;color:var(--red);margin-right:9px}
+#chip{position:absolute;right:36px;top:96px;z-index:210;background:var(--red);color:#fff;border-radius:10px;
+  padding:8px 15px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;
+  opacity:0;transition:opacity .35s}
+#chip.on{opacity:1}
+#prog{position:absolute;left:0;bottom:0;height:4px;background:var(--red);width:0;z-index:400}
+/* porte */
+#gate{position:absolute;inset:0;z-index:500;background:#000;color:#fff;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:0 190px}
+#gate.off{display:none}
+#gate .g1{font-size:52px;font-weight:900;letter-spacing:-2.2px;margin:32px 0 16px}
+#gate .g2{font-size:19px;font-weight:600;color:#A5A5A5;line-height:1.6;max-width:900px}
+#gate .row{display:flex;gap:14px;margin-top:42px;align-items:center}
+#gate button{font-family:inherit;font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:1px;
+  border-radius:14px;padding:19px 32px;cursor:pointer;border:1px solid #fff;background:none;color:#fff}
+#gate button.main{background:var(--red);border-color:var(--red)}
+#gate button:hover{background:#fff;color:#0A0A0A}
+#gate select{font-family:inherit;font-weight:700;font-size:14px;background:#1B1B1B;color:#fff;
+  border:1px solid #303030;border-radius:12px;padding:18px 15px;max-width:330px}
+#gate .hint{margin-top:32px;font-size:12.5px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;
+  color:#4a4a4a;line-height:2}
+#recbadge{position:absolute;left:36px;top:96px;z-index:330;background:#0A0A0A;color:#fff;
+  border:1px solid #FE0B00;border-radius:10px;padding:8px 14px;font-size:11.5px;font-weight:700;
+  letter-spacing:1.6px;display:none;align-items:center;gap:9px}
+#recbadge.on{display:flex}
+#recbadge .dot{width:9px;height:9px;border-radius:50%;background:#FE0B00;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+#done{position:absolute;inset:0;z-index:520;background:#000;color:#fff;display:none;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:0 180px}
+#done.on{display:flex}
+#done .k{font-size:14px;font-weight:700;letter-spacing:4px;text-transform:uppercase;color:#FE0B00}
+#done .big{font-size:70px;font-weight:900;letter-spacing:-3px;margin:24px 0}
+#done .sub{font-size:19px;font-weight:600;color:#A5A5A5;line-height:1.6;max-width:900px}
+.dlbtn{margin-top:38px;background:#FE0B00;color:#fff;border-radius:14px;padding:20px 36px;font-size:15px;
+  font-weight:700;text-transform:uppercase;letter-spacing:1px;text-decoration:none}
+.dlbtn:hover{background:#d90a00}
+#hud{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:11px;
+  z-index:1000;background:rgba(10,10,10,.86);border:1px solid #303030;border-radius:14px;padding:9px 15px;
+  backdrop-filter:blur(8px);opacity:0;transition:opacity .3s}
+#hud.show{opacity:1}
+#hud.hidden{display:none}
+#hud button,#hud label{background:none;border:1px solid #fff;color:#fff;border-radius:10px;padding:8px 13px;
+  font-family:inherit;font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.8px;cursor:pointer}
+#hud button:hover,#hud label:hover{background:#fff;color:#0A0A0A}
+#hud .t{color:#A5A5A5;font-size:11.5px;font-weight:700;letter-spacing:1.2px;min-width:72px;text-align:center}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+<div id="app">
+<header>
+  <div class="brand">
+    <svg width="118" height="19" viewBox="0 0 127 20" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GROF">
+      <path d="M126.25 6.25V0H99.375C97.6486 0 96.25 1.39861 96.25 3.125V20H105V13.75H126.25V7.5H105V6.25H126.25Z"/>
+      <path d="M91.875 0H65.625C63.8986 0 62.5 1.39861 62.5 3.125V16.875C62.5 18.6014 63.8986 20 65.625 20H91.875C93.6014 20 95 18.6014 95 16.875V3.125C95 1.39861 93.6014 0 91.875 0ZM86.25 13.125C86.25 13.4708 85.9708 13.75 85.625 13.75H71.875C71.5292 13.75 71.25 13.4708 71.25 13.125V6.875C71.25 6.52917 71.5292 6.25 71.875 6.25H85.625C85.9708 6.25 86.25 6.52917 86.25 6.875V13.125Z"/>
+      <path d="M56.25 13.75H58.125C59.8514 13.75 61.25 12.3514 61.25 10.625V3.125C61.25 1.39861 59.8514 0 58.125 0H31.25C31.25 3.45139 34.0486 6.25 37.5 6.25H51.875C52.2208 6.25 52.5 6.52917 52.5 6.875C52.5 7.22083 52.2208 7.5 51.875 7.5H37.5C34.0486 7.5 31.25 10.2986 31.25 13.75V20H40V13.75H46.25L52.5 20H62.5L56.25 13.75Z"/>
+      <path d="M23.75 7.5H18.125V10.625C18.125 12.3514 19.5236 13.75 21.25 13.75H8.75V6.25H23.75C27.2014 6.25 30 3.45139 30 0H3.125C1.39861 0 0 1.39861 0 3.125V16.875C0 18.6014 1.39861 20 3.125 20H30V13.75C30 10.2986 27.2014 7.5 23.75 7.5Z"/>
+    </svg>
+    <span class="tag">Reporting SDR</span>
+  </div>
+  <div class="hmid">
+    <div class="ico" id="b-home">⌂</div>
+    <div style="position:relative">
+      <div class="vbtn" id="b-view">→ Accueil</div>
+      <div class="vpop" id="vpop">
+        <b id="vi-pilot">→ Pilotage</b><b id="vi-rent">→ Rentabilité</b><b id="vi-perf">→ Performance</b>
+        <b id="vi-skip">→ SkipCall</b><b id="vi-rdv">→ Notion</b><b id="vi-probs">→ Ticket</b>
+      </div>
+    </div>
+    <div class="upd">Mis à jour <b>30/07/2026 09:14</b></div>
+    <div class="ico" id="b-mob">▭</div>
+    <div class="ico" id="b-theme">☾</div>
+  </div>
+  <div style="width:150px"></div>
+</header>
+<div id="vp"><div id="doc">
+<!-- ============ ACCUEIL ============ -->
+<section class="view on" id="v-home">
+  <div class="filters">
+    <div class="filter"><label>Période (Performance &amp; Pilotage)</label>
+      <div class="seg" id="h-preset">
+        <button data-p="yesterday">Hier</button><button data-p="today">Aujourd'hui</button>
+        <button data-p="week">Cette semaine</button><button data-p="lastweek">Semaine dernière</button>
+        <button data-p="month" class="active">Ce mois-ci</button>
+      </div>
+    </div>
+  </div>
+  <div class="panel"><h3>→ L'essentiel</h3>
+    <div class="kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:0" id="ess">
+      <div class="kpi"><div class="v" data-c="4128">–</div><div class="l">Appels</div></div>
+      <div class="kpi"><div class="v" data-c="46">–</div><div class="l">RDV pris</div></div>
+      <div class="kpi rate"><div class="v" data-c="8.4" data-s=" %">–</div><div class="l">Taux RDV</div></div>
+      <div class="kpi gr"><div class="v" data-c="12">–</div><div class="l">RDV validés</div></div>
+      <div class="kpi"><div class="v" data-t="182 K €">–</div><div class="l">CA total</div></div>
+      <div class="kpi"><div class="v" data-t="64 K €">–</div><div class="l">Pipeline</div></div>
+      <div class="kpi"><div class="v" data-c="5">–</div><div class="l">RDV à reprogrammer</div></div>
+      <div class="kpi"><div class="v" data-c="3">–</div><div class="l">Tickets actifs</div></div>
+    </div>
+  </div>
+  <div class="tiles" id="tiles-box"></div>
+</section>
+<!-- ============ PERFORMANCE ============ -->
+<section class="view" id="v-perf">
+  <div class="filters">
+    <div class="filter"><label>Personne</label><div class="sel" id="f-person">Toute l'équipe</div></div>
+    <div class="filter"><label>Mission</label><div class="sel" id="f-mission">Toutes les missions</div></div>
+    <div class="filter"><label>Granularité</label>
+      <div class="seg" id="f-gran"><button data-g="day">Jour</button><button data-g="week">Semaine</button>
+      <button data-g="month" class="active">Mois</button><button data-g="year">Année</button></div>
+    </div>
+    <div class="filter"><label>Période</label>
+      <div class="seg" id="f-preset"><button data-p="yesterday">Hier</button><button data-p="today">Aujourd'hui</button>
+      <button data-p="week">Cette semaine</button><button data-p="month">Ce mois-ci</button>
+      <button data-p="all" class="active">Tout</button></div>
+    </div>
+    <div class="filter"><label>Dates</label><div class="rbtn" id="f-range">…</div></div>
+    <div class="filter"><label>&nbsp;</label><div class="rbtn dark" id="f-pdf">→ Export PDF</div></div>
+    <div class="pop" id="datepop" style="left:790px">
+      <label>Du</label><div class="f" id="d-from">jj/mm/aaaa</div>
+      <label>Au</label><div class="f" id="d-to">jj/mm/aaaa</div>
+      <div class="btn-add" id="d-apply" style="text-align:center">→ Appliquer</div>
+    </div>
+    <div class="pop" id="pdfpop" style="left:1030px">
+      <label>Mission</label><div class="f" id="x-mission">— Mission —</div>
+      <label>Période</label>
+      <div class="seg"><button id="x-week" class="active">Semaine</button><button id="x-month">Mois</button></div>
+      <div class="f" id="x-val">2026-S31</div>
+      <div class="btn-add" id="x-go" style="text-align:center">→ Générer le PDF</div>
+    </div>
+  </div>
+  <div class="kpis" id="perf-k1">
+    <div class="kpi"><div class="v" data-c="12480">–</div><div class="l">Appels</div></div>
+    <div class="kpi"><div class="v" data-c="3116">–</div><div class="l">Décrochés</div></div>
+    <div class="kpi rate"><div class="v" data-c="25.0" data-s=" %">–</div><div class="l">Taux de décroché</div></div>
+    <div class="kpi"><div class="v" data-c="188">–</div><div class="l">RDV pris</div></div>
+    <div class="kpi rate"><div class="v" data-c="6.0" data-s=" %">–</div><div class="l">Taux de RDV</div></div>
+  </div>
+  <div class="kpis" id="perf-k2">
+    <div class="kpi gr"><div class="v" data-c="31">–</div><div class="l">RDV validés</div></div>
+    <div class="kpi"><div class="v" data-c="57">–</div><div class="l">RDV invalidés</div></div>
+    <div class="kpi"><div class="v" data-t="214 h">–</div><div class="l">Durée totale</div></div>
+    <div class="kpi"><div class="v" data-c="14">–</div><div class="l">No show</div></div>
+    <div class="kpi"><div class="v" data-c="19">–</div><div class="l">RDV reprogrammés</div></div>
+  </div>
+  <div class="panel" id="p-detail"><h3>→ Détail par personne</h3>
+    <table><thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th>
+    <th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th>
+    <th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
+    <tbody id="t-person"></tbody></table>
+  </div>
+  <div class="panel" id="p-obj"><h3>→ Objectifs de RDV par mission <em>(objectif mensuel · RDV pris sur la période sélectionnée)</em></h3>
+    <table><thead><tr><th>Mission</th><th class="num">Objectif / mois</th><th class="num">RDV pris</th>
+    <th class="num">Avancement</th><th style="width:38%">Progression</th></tr></thead>
+    <tbody id="t-obj"></tbody></table>
+  </div>
+  <div class="panel" id="p-evo"><h3>→ Évolution de l'activité <em>/ appels · décrochés · RDV</em></h3>
+    <svg id="ch-evo" viewBox="0 0 1720 340" style="width:100%;height:300px;display:block">
+      <g stroke="var(--border)"><line x1="50" y1="20" x2="1700" y2="20"/><line x1="50" y1="100" x2="1700" y2="100"/>
+      <line x1="50" y1="180" x2="1700" y2="180"/><line x1="50" y1="260" x2="1700" y2="260"/></g>
+      <line x1="50" y1="300" x2="1700" y2="300" stroke="var(--black)" stroke-width="2"/>
+      <g id="evo-bars"></g>
+      <path id="evo-a" fill="none" stroke="var(--black)" stroke-width="3.5" stroke-linejoin="round"/>
+      <path id="evo-b" fill="none" stroke="var(--red)" stroke-width="3.5" stroke-linejoin="round"/>
+      <g id="evo-lab" font-size="14" font-weight="700" fill="var(--grey)"></g>
+    </svg>
+  </div>
+  <div class="panel"><h3>→ Taux de décroché &amp; taux de RDV <em>(%)</em></h3>
+    <svg id="ch-rate" viewBox="0 0 1720 260" style="width:100%;height:230px;display:block">
+      <g stroke="var(--border)"><line x1="50" y1="20" x2="1700" y2="20"/><line x1="50" y1="90" x2="1700" y2="90"/>
+      <line x1="50" y1="160" x2="1700" y2="160"/></g>
+      <line x1="50" y1="220" x2="1700" y2="220" stroke="var(--black)" stroke-width="2"/>
+      <path id="rate-a" fill="none" stroke="var(--black)" stroke-width="3.5" stroke-linejoin="round"/>
+      <path id="rate-b" fill="none" stroke="var(--red)" stroke-width="3.5" stroke-linejoin="round"/>
+    </svg>
+  </div>
+  <div class="grid2" id="p-rep">
+    <div class="panel"><h3>→ Par personne</h3><div id="bars-person"></div></div>
+    <div class="panel"><h3>→ Par mission</h3><div id="bars-mission"></div></div>
+  </div>
+</section>
+<!-- ============ PILOTAGE ============ -->
+<section class="view" id="v-pilot">
+  <div class="filters">
+    <div class="filter"><label>Mission</label><div class="sel" id="pl-mission">Toutes les missions</div></div>
+    <div class="filter"><label>Période</label><div class="rbtn" id="pl-range">01/07/2026 → 30/07/2026</div></div>
+    <div class="filter"><label>Raccourcis</label>
+      <div class="seg" id="pl-preset"><button data-p="lastweek">Semaine dernière</button>
+      <button data-p="lastmonth">Mois dernier</button><button data-p="3months">3 derniers mois</button>
+      <button data-p="month" class="active">Ce mois-ci</button></div>
+    </div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="v" data-c="46">–</div><div class="l">RDV pris</div></div>
+    <div class="kpi rate"><div class="v" data-c="12">–</div><div class="l">RDV validés</div></div>
+    <div class="kpi"><div class="v" data-c="9">–</div><div class="l">RDV invalidés</div></div>
+    <div class="kpi rate"><div class="v" data-c="57.1" data-s=" %">–</div><div class="l">Taux de validation</div></div>
+    <div class="kpi"><div class="v" data-c="4">–</div><div class="l">No show</div></div>
+  </div>
+  <div class="panel" id="pl-top"><h3>→ Top performeurs <em>records — depuis le début d'année</em></h3>
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:0">
+      <div class="kpi"><div class="v" data-c="1073">–</div><div class="l">Appels · 1 jour · Alexis · 05/03/2026</div></div>
+      <div class="kpi"><div class="v" data-c="7">–</div><div class="l">RDV · 1 jour · Alexis · 12/02/2026</div></div>
+      <div class="kpi"><div class="v" data-c="15">–</div><div class="l">RDV · 1 semaine · Alix · 09/02/2026</div></div>
+    </div>
+  </div>
+  <div class="panel" id="pl-tab"><h3>→ Pilotage par mission</h3>
+    <table><thead><tr><th>Mission</th><th class="num">RDV pris</th><th class="num">Validés</th>
+    <th class="num">Invalidés</th><th class="num">Taux validation</th><th class="num">No show</th>
+    <th class="num">Objectif / mois</th><th class="num">Avancement</th></tr></thead>
+    <tbody id="t-pilot"></tbody></table>
+  </div>
+  <div class="panel" id="pl-cal"><h3>→ Présences de la semaine</h3>
+    <div style="display:flex;gap:11px;align-items:center;margin-bottom:13px">
+      <div class="rbtn" id="cal-prev" style="min-width:auto;padding:6px 14px">←</div>
+      <span id="cal-lab" style="font-weight:700;font-size:14px">Semaine du 27/07 au 02/08/2026</span>
+      <div class="rbtn" id="cal-next" style="min-width:auto;padding:6px 14px">→</div>
+    </div>
+    <table><thead id="cal-head"></thead><tbody id="cal-body"></tbody></table>
+  </div>
+  <div class="panel" id="pl-jt"><h3>→ Jours travaillés &amp; ratios</h3>
+    <div class="seg" id="jt-preset" style="margin-bottom:13px;display:inline-flex">
+      <button data-p="lastweek">Semaine dernière</button><button data-p="month" class="active">Ce mois-ci</button>
+      <button data-p="lastmonth">Mois dernier</button><button data-p="3months">3 derniers mois</button>
+    </div>
+    <div class="note" style="margin-bottom:10px">Jours travaillés lus dans les Google Sheets « Préparatoires » de chaque SDR, onglet Récap par personne.</div>
+    <table><thead><tr><th>Personne</th><th class="num">Jours travaillés</th><th class="num">Appels / jour</th>
+    <th class="num">Décrochés / jour</th><th class="num">RDV / jour</th></tr></thead>
+    <tbody id="t-jours"></tbody></table>
+  </div>
+  <div class="panel" id="pl-com"><h3>→ Commissions par SDR</h3>
+    <table><thead><tr><th>Personne</th><th class="num">RDV pris</th><th class="num">RDV validés</th>
+    <th class="num">Commission</th></tr></thead><tbody id="t-coms"></tbody></table>
+    <div class="note" style="margin-top:12px">Barème appliqué : 20 € par RDV validé, puis 30 € au-delà du 10ᵉ dans le mois.</div>
+  </div>
+</section>
+<!-- ============ RENTABILITÉ ============ -->
+<section class="view" id="v-rent">
+  <div class="note" style="margin-bottom:14px">Données en direct depuis l'onglet <b>02_Dashboard_Print</b> du <a href="#">Google Sheet ↗</a></div>
+  <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi"><div class="v" data-t="182 K €">–</div><div class="l">CA total</div></div>
+    <div class="kpi"><div class="v" data-t="61,4 K €">–</div><div class="l">Marge nette</div></div>
+    <div class="kpi"><div class="v" data-t="64 K €">–</div><div class="l">Pipeline</div></div>
+    <div class="kpi"><div class="v" data-t="118 K €">–</div><div class="l">CA signé</div></div>
+  </div>
+  <div class="panel" id="r-miss"><h3>→ Missions</h3>
+    <table><thead><tr><th>Client</th><th>Statut</th><th>Go/No-Go</th><th class="num">CA total</th>
+    <th class="num">Marge nette</th><th class="num">Delta dispo</th><th class="num">RDV nets</th>
+    <th class="num">Pipeline</th><th class="num">CA signé</th><th>Risque</th></tr></thead>
+    <tbody id="t-rent"></tbody></table>
+  </div>
+  <div class="panel" id="r-alert"><h3>→ Alertes à traiter</h3>
+    <table><thead><tr><th>Type</th><th>Mission</th><th>Alerte</th></tr></thead>
+    <tbody id="t-alert"></tbody></table>
+  </div>
+</section>
+<!-- ============ SKIPCALL ============ -->
+<section class="view" id="v-skip">
+  <div class="filters">
+    <div class="filter"><label>Mission</label><div class="sel" id="sc-mission">Toutes les missions</div></div>
+    <div class="filter"><label>Période</label>
+      <div class="seg" id="sc-preset"><button data-p="yesterday">Hier</button>
+      <button data-p="today">Aujourd'hui</button><button data-p="week">Cette semaine</button></div>
+    </div>
+    <div class="filter"><label>Dates</label><div class="rbtn" id="sc-range">…</div></div>
+    <div class="filter"><label>&nbsp;</label><div class="btn-add" id="sc-go">→ Afficher</div></div>
+    <div class="filter"><label>&nbsp;</label><div class="rbtn dark" id="sc-pdf">→ Export PDF</div></div>
+  </div>
+  <div id="sc-content"></div>
+</section>
+<!-- ============ NOTION ============ -->
+<section class="view" id="v-rdv">
+  <div class="kpis" id="rdv-kpis"></div>
+  <div class="panel"><h3>→ RDV par statut <em>· par mission</em></h3>
+    <div class="board" id="board"></div>
+    <div class="note" style="margin-top:13px" id="rdv-note">Snapshot Notion du <b style="color:var(--red)">20/07/2026</b> — connexion Notion indisponible (le proxy Apps Script doit être configuré avec le token Notion).</div>
+  </div>
+  <div class="panel" id="n-detail"><h3>→ Détail des RDV <em>par mission</em></h3>
+    <div class="tabs" id="tabs"></div>
+    <div id="rdv-detail"></div>
+  </div>
+  <div class="panel" id="n-new"><h3>→ Nouveau RDV <em>écrit directement dans la base « RDV Pris » Notion de la mission</em></h3>
+    <div class="pform">
+      <div><span class="lbl">Mission</span><div class="in ph" id="n-mission">— Mission —</div></div>
+      <div><span class="lbl">Statut</span><div class="in" id="n-statut">RDV Programmé</div></div>
+      <div><span class="lbl">Nom du RDV / prospect *</span><div class="in ph" id="n-nom">Nom du RDV / prospect</div></div>
+      <div><span class="lbl">Organisation</span><div class="in ph" id="n-org">Organisation</div></div>
+      <div><span class="lbl">Secteur d'activité</span><div class="in ph">Secteur d'activité</div></div>
+      <div><span class="lbl">Contact</span><div class="in ph" id="n-contact">Contact</div></div>
+      <div><span class="lbl">Poste</span><div class="in ph">Poste</div></div>
+      <div><span class="lbl">Téléphone du contact</span><div class="in ph">Téléphone</div></div>
+      <div><span class="lbl">Email du contact</span><div class="in ph">Email</div></div>
+      <div><span class="lbl">Date RDV</span><div class="in ph" id="n-date">jj/mm/aaaa --:--</div></div>
+      <div><span class="lbl">Lieu</span><div class="in ph" id="n-lieu">— Lieu —</div></div>
+      <div><span class="lbl">RDV pris le</span><div class="in" id="n-prisle">30/07/2026</div></div>
+      <div><span class="lbl">Pris par</span><div class="in ph" id="n-prispar">— Pris par —</div></div>
+      <div><span class="lbl">Personne (qui fait le RDV)</span><div class="in ph" id="n-qui">— Personne —</div></div>
+      <div><span class="lbl">Enregistrement d'appel (MP3, optionnel)</span><div class="in ph" id="n-mp3">Choisir un fichier</div></div>
+      <div class="wide"><div class="btn-add" id="n-go">→ Créer dans Notion</div></div>
+      <div class="note wide" id="n-msg">Les champs correspondent aux bases Notion « RDV Pris [DB] » — le RDV apparaît immédiatement dans Notion.</div>
+    </div>
+  </div>
+</section>
+<!-- ============ TICKET ============ -->
+<section class="view" id="v-probs">
+  <div class="panel"><h3>→ Ajouter une problématique</h3>
+    <div class="pform">
+      <div class="in ph" id="p-mission">Mission (ex : GROF, DCUBE…)</div>
+      <div class="in ph" id="p-pers">Personne (optionnel)</div>
+      <div class="in ph" id="p-statut">Statut (ex : En cours, Résolu)</div>
+      <div class="in ph ta wide" id="p-prob">Problème rencontré…</div>
+      <div class="in ph ta wide" id="p-sol">Solution…</div>
+      <div class="in ph ta wide" id="p-marche">Marche à suivre (étapes concrètes)…</div>
+      <div class="wide"><div class="btn-add" id="p-go">→ Ajouter</div></div>
+      <div class="note wide">Enregistré directement dans l'onglet « Problèmes » du Google Sheet — visible par toute l'équipe.</div>
+    </div>
+  </div>
+  <div id="probs-list"></div>
+</section>
+</div></div>
+</div>
+<div id="scrim"></div>
+<div class="modal" id="m-rdv">
+  <h3>→ Modifier le RDV</h3>
+  <div class="pform" style="grid-template-columns:1fr 1fr">
+    <div><span class="lbl">Nom du RDV / prospect *</span><div class="in">Groupe Lartigue</div></div>
+    <div><span class="lbl">Statut</span><div class="in" id="e-statut">RDV Programmé</div></div>
+    <div><span class="lbl">Organisation</span><div class="in">Lartigue &amp; Fils</div></div>
+    <div><span class="lbl">Date RDV</span><div class="in">18/08/2026 10:30</div></div>
+    <div><span class="lbl">Lieu</span><div class="in">Visio</div></div>
+    <div><span class="lbl">Remplacer le MP3 (optionnel)</span><div class="in ph">Choisir un fichier</div></div>
+    <div class="wide" style="display:flex;gap:10px">
+      <div class="btn-add" id="e-go" style="flex:1;text-align:center">→ Enregistrer</div>
+      <div class="rbtn" id="e-cancel" style="flex:1;text-align:center;min-width:auto">Annuler</div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="rip"></div>
+<div id="cur"><svg width="28" height="28" viewBox="0 0 24 24"><path d="M5 2 L5 20 L10 15 L13 22 L16 21 L13 14 L20 14 Z" fill="#fff" stroke="#0A0A0A" stroke-width="1.6"/></svg></div>
+<div id="chapcard"><div class="n" id="ch-n">Chapitre</div><div class="t" id="ch-t">Titre</div><div class="d" id="ch-d">Description</div></div>
+<div class="card" id="c-in">
+  <div data-a="cut">
+    <svg width="440" height="70" viewBox="0 0 127 20" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GROF" fill="#fff">
+      <path d="M126.25 6.25V0H99.375C97.6486 0 96.25 1.39861 96.25 3.125V20H105V13.75H126.25V7.5H105V6.25H126.25Z"/>
+      <path d="M91.875 0H65.625C63.8986 0 62.5 1.39861 62.5 3.125V16.875C62.5 18.6014 63.8986 20 65.625 20H91.875C93.6014 20 95 18.6014 95 16.875V3.125C95 1.39861 93.6014 0 91.875 0ZM86.25 13.125C86.25 13.4708 85.9708 13.75 85.625 13.75H71.875C71.5292 13.75 71.25 13.4708 71.25 13.125V6.875C71.25 6.52917 71.5292 6.25 71.875 6.25H85.625C85.9708 6.25 86.25 6.52917 86.25 6.875V13.125Z"/>
+      <path d="M56.25 13.75H58.125C59.8514 13.75 61.25 12.3514 61.25 10.625V3.125C61.25 1.39861 59.8514 0 58.125 0H31.25C31.25 3.45139 34.0486 6.25 37.5 6.25H51.875C52.2208 6.25 52.5 6.52917 52.5 6.875C52.5 7.22083 52.2208 7.5 51.875 7.5H37.5C34.0486 7.5 31.25 10.2986 31.25 13.75V20H40V13.75H46.25L52.5 20H62.5L56.25 13.75Z"/>
+      <path d="M23.75 7.5H18.125V10.625C18.125 12.3514 19.5236 13.75 21.25 13.75H8.75V6.25H23.75C27.2014 6.25 30 3.45139 30 0H3.125C1.39861 0 0 1.39861 0 3.125V16.875C0 18.6014 1.39861 20 3.125 20H30V13.75C30 10.2986 27.2014 7.5 23.75 7.5Z"/>
+    </svg>
+  </div>
+  <div class="big" data-a="up" style="animation-delay:.5s;font-size:58px">Tutoriel complet</div>
+  <div class="toc">
+    <div data-a="fade" style="animation-delay:.9s"><s>01</s> Les sources de données</div>
+    <div data-a="fade" style="animation-delay:1.0s"><s>05</s> Rentabilité</div>
+    <div data-a="fade" style="animation-delay:1.1s"><s>02</s> Le bandeau et l'accueil</div>
+    <div data-a="fade" style="animation-delay:1.2s"><s>06</s> SkipCall</div>
+    <div data-a="fade" style="animation-delay:1.3s"><s>03</s> Performance</div>
+    <div data-a="fade" style="animation-delay:1.4s"><s>07</s> Notion</div>
+    <div data-a="fade" style="animation-delay:1.5s"><s>04</s> Pilotage</div>
+    <div data-a="fade" style="animation-delay:1.6s"><s>08</s> Ticket</div>
+  </div>
+</div>
+<div class="card" id="c-out">
+  <div class="k" data-a="fade">→ Récapitulatif</div>
+  <div class="big" data-a="up" style="animation-delay:.3s;font-size:60px">Quelle page<br>pour quel besoin</div>
+  <div class="sub" data-a="fade" style="animation-delay:.9s" id="out-sub"></div>
+</div>
+<div id="cap"><b id="capt"><s>→</s><span id="captx"></span></b></div>
+<div id="chip"></div>
+<div id="prog"></div>
+<div id="recbadge"><span class="dot"></span>ENREGISTREMENT</div>
+<div id="done">
+  <div class="k">→ Terminé</div>
+  <div class="big">Vidéo prête</div>
+  <div class="sub" id="done-sub"></div>
+  <a id="done-dl" class="dlbtn" download>⬇ Télécharger la vidéo</a>
+</div>
+<div id="gate">
+  <svg width="360" height="57" viewBox="0 0 127 20" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GROF" fill="#fff">
+    <path d="M126.25 6.25V0H99.375C97.6486 0 96.25 1.39861 96.25 3.125V20H105V13.75H126.25V7.5H105V6.25H126.25Z"/>
+    <path d="M91.875 0H65.625C63.8986 0 62.5 1.39861 62.5 3.125V16.875C62.5 18.6014 63.8986 20 65.625 20H91.875C93.6014 20 95 18.6014 95 16.875V3.125C95 1.39861 93.6014 0 91.875 0ZM86.25 13.125C86.25 13.4708 85.9708 13.75 85.625 13.75H71.875C71.5292 13.75 71.25 13.4708 71.25 13.125V6.875C71.25 6.52917 71.5292 6.25 71.875 6.25H85.625C85.9708 6.25 86.25 6.52917 86.25 6.875V13.125Z"/>
+    <path d="M56.25 13.75H58.125C59.8514 13.75 61.25 12.3514 61.25 10.625V3.125C61.25 1.39861 59.8514 0 58.125 0H31.25C31.25 3.45139 34.0486 6.25 37.5 6.25H51.875C52.2208 6.25 52.5 6.52917 52.5 6.875C52.5 7.22083 52.2208 7.5 51.875 7.5H37.5C34.0486 7.5 31.25 10.2986 31.25 13.75V20H40V13.75H46.25L52.5 20H62.5L56.25 13.75Z"/>
+    <path d="M23.75 7.5H18.125V10.625C18.125 12.3514 19.5236 13.75 21.25 13.75H8.75V6.25H23.75C27.2014 6.25 30 3.45139 30 0H3.125C1.39861 0 0 1.39861 0 3.125V16.875C0 18.6014 1.39861 20 3.125 20H30V13.75C30 10.2986 27.2014 7.5 23.75 7.5Z"/>
+  </svg>
+  <div class="g1">Tutoriel · Reporting SDR</div>
+  <div class="g2">Huit chapitres, sous-titrés, sans son. Passe en plein écran avec F, lance ton enregistreur, puis clique.</div>
+  <div class="row">
+    <button class="main" id="g-rec">⏺ Enregistrer la vidéo</button>
+    <button id="g-go">▶ Lancer sans enregistrer</button>
+  </div>
+  <div class="hint" id="g-recinfo" style="margin-top:22px;color:#8a8a8a;letter-spacing:.4px;text-transform:none;font-size:14px;font-weight:600;max-width:820px;line-height:1.6">
+    Le navigateur va te demander quoi filmer : choisis <b style="color:#fff">l'onglet en cours</b>. L'enregistrement démarre, le tutoriel se lance, et le fichier se télécharge tout seul au bout de 7 min 55.
+  </div>
+  <div class="hint">Plein écran : F · Pause : espace · Chapitre : ← → · Masquer la barre : H<br>La barre du bas disparaît toute seule et n'apparaît qu'au mouvement de souris</div>
+</div>
+</div></div>
+<div id="hud">
+  <button id="pp">Pause</button>
+  <span class="t" id="tc">00:00</span>
+  <button id="prev">◀ Chap.</button>
+  <button id="next">Chap. ▶</button>
+  <button id="hide">Masquer (H)</button>
+  <button id="rw">Rejouer</button>
+</div>
+<script>
+/* ============================================================
+   DONNÉES DE DÉMONSTRATION
+   Structure et libellés repris de l'application réelle.
+   Les valeurs sont des exemples : remplace-les par un vrai mois.
+   ============================================================ */
+const PEOPLE = ['Alexis','Alix','Matteo','Luca','Idriss','Jennifer'];
+const OBJECTIFS = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':10,'MOGADOR':10,'Be Signal':10,'KOM':10};
+const D = {
+  person: [
+    ['Alexis',   3120, 812, '26,0 %', 52, '6,4 %', 4, 5, 3180],
+    ['Alix',     2740, 705, '25,7 %', 41, '6,0 %', 3, 4, 2810],
+    ['Matteo',   2310, 566, '24,5 %', 33, '5,8 %', 2, 4, 2340],
+    ['Luca',     1980, 486, '24,5 %', 27, '5,5 %', 2, 3, 2010],
+    ['Idriss',   1420, 341, '24,0 %', 21, '5,9 %', 2, 2, 1460],
+    ['Jennifer',  910, 206, '22,6 %', 14, '5,4 %', 1, 1,  980]
+  ],
+  obj: [
+    ['WEECHOOZ', 40, 34], ['DCUBE', 10, 11], ['KOM', 10, 8], ['MOGADOR', 10, 9],
+    ['SPECTRUM', 10, 6], ['ZBO', 10, 7], ['HARVEN', 10, 4], ['Be Signal', 10, 5]
+  ],
+  pilot: [
+    ['WEECHOOZ', 34, 9, 6, '60,0 %', 2, 40],
+    ['DCUBE', 11, 1, 4, '20,0 %', 1, 10],
+    ['MOGADOR', 9, 3, 1, '75,0 %', 0, 10],
+    ['KOM', 8, 2, 2, '50,0 %', 1, 10],
+    ['ZBO', 7, 3, 0, '100,0 %', 0, 10],
+    ['SPECTRUM', 6, 2, 1, '66,7 %', 0, 10],
+    ['Be Signal', 5, 1, 1, '50,0 %', 0, 10],
+    ['HARVEN', 4, 1, 1, '50,0 %', 0, 10]
+  ],
+  jours: [
+    ['Alexis', 21, 148.6, 38.7, 2.48], ['Alix', 20, 137.0, 35.3, 2.05],
+    ['Matteo', 19, 121.6, 29.8, 1.74], ['Luca', 21, 94.3, 23.1, 1.29],
+    ['Idriss', 17, 83.5, 20.1, 1.24], ['Jennifer', 12, 75.8, 17.2, 1.17]
+  ],
+  coms: [['Alexis', 52, 12], ['Alix', 41, 9], ['Matteo', 33, 5],
+         ['Luca', 27, 3], ['Idriss', 21, 1], ['Jennifer', 14, 1]],
+  calDays: ['Lun 27/07','Mar 28/07','Mer 29/07','Jeu 30/07','Ven 31/07'],
+  cal: [
+    ['Alexis', 'Présent','Présent','Présent','Présent','Présent'],
+    ['Alix', 'Présent','Présent','Présent','Présent','Congés'],
+    ['Matteo', 'En cours','En cours','En cours','En cours','En cours'],
+    ['Luca', 'Présent','Présent','Arrêt Maladie','Arrêt Maladie','Présent'],
+    ['Idriss', 'Présent','Présent','Présent','Congés','Présent'],
+    ['Jennifer', 'Présent','Présent','Présent','Présent','Présent']
+  ],
+  rent: [
+    ['WEECHOOZ','Actif','Go','96 K €','34,2 K €','+8 j','34','28 K €','68 K €','Faible'],
+    ['DCUBE','Actif','Go','38 K €','12,1 K €','−2 j','11','14 K €','26 K €','Moyen'],
+    ['MOGADOR','Actif','Go','24 K €','8,4 K €','+3 j','9','9 K €','15 K €','Faible'],
+    ['SPECTRUM','En pause','No-Go','14 K €','3,9 K €','−5 j','6','7 K €','6 K €','Élevé'],
+    ['HARVEN','Actif','Go','10 K €','2,8 K €','+1 j','4','6 K €','3 K €','Moyen']
+  ],
+  alerts: [
+    ['Marge','SPECTRUM','Marge nette sous le seuil de 30 % sur le mois en cours'],
+    ['Delta dispo','DCUBE','Deux jours de production non couverts sur la semaine 31'],
+    ['Pipeline','HARVEN','Pipeline inférieur au CA signé, relance commerciale à prévoir']
+  ],
+  tags: [['Rendez-vous pris',188,'success'],['Pas intéressé',1642,''],['À rappeler',1204,''],
+         ['Mauvais interlocuteur',611,''],['Ne pas rappeler',389,''],['Déjà équipé',242,'']],
+  statuts: [['Pas de réponse',5218,'neutral'],['Connecté',3116,'success'],['Répondeur',2104,'neutral'],
+            ['Occupé',1327,'neutral'],['Numéro invalide',412,''],['Appel manqué',303,'neutral']],
+  seq: [
+    ['WEECHOOZ · Décideurs IT Île-de-France', 4820, 3140, 61, '2 min 12'],
+    ['DCUBE · DSI grands comptes', 2410, 1980, 22, '2 min 41'],
+    ['MOGADOR · Hôtellerie Sud-Ouest', 1860, 1420, 18, '2 min 05'],
+    ['KOM · Retail régional', 1640, 1310, 16, '1 min 54'],
+    ['ZBO · Logistique', 1220, 980, 14, '2 min 18'],
+    ['SPECTRUM · Industrie', 980, 740, 11, '1 min 47']
+  ],
+  rdvStatus: [
+    ['RDV à reprogrammer', '#E8A33D'], ['RDV Programmé', '#3D7FE8'], ['RDV validé', '#1FA95C'],
+    ['RDV invalidé', '#FE0B00'], ['RDV archivé', '#9A9A9A']
+  ],
+  rdvCounts: {
+    'WEECHOOZ': [2, 9, 9, 6, 8], 'DCUBE': [1, 3, 1, 12, 5], 'MOGADOR': [1, 2, 6, 10, 3],
+    'KOM': [1, 2, 2, 4, 2], 'ZBO': [0, 1, 3, 0, 1], 'SPECTRUM': [0, 1, 2, 1, 1],
+    'GROF': [0, 2, 7, 3, 2], 'HARVEN': [0, 1, 1, 1, 0]
+  },
+  rdvDetail: [
+    ['Groupe Lartigue', 'RDV Programmé', 'Lartigue & Fils', '18/08/2026 10:30', 'Visio', 'Alexis', 'Alexis'],
+    ['Cabinet Meunier', 'RDV validé', 'Meunier Conseil', '29/07/2026 14:00', 'Visio', 'Alix', 'Alix'],
+    ['Transports Verdier', 'RDV à reprogrammer', 'Verdier SA', '24/07/2026 09:00', 'Physique', 'Matteo', 'Alexis'],
+    ['Atelier Ronsard', 'RDV invalidé', 'Ronsard SARL', '21/07/2026 16:30', 'Visio', 'Luca', 'Luca']
+  ],
+  probs: [
+    ['SPECTRUM', 'Luca', 'En cours', 'Google Sheet', false,
+     'Le standard filtre systématiquement, on n’atteint jamais le décideur',
+     'Tester les appels avant 9 h et changer l’accroche sur le premier niveau.',
+     '1. Extraire les 40 comptes bloqués. 2. Rappeler entre 8 h 15 et 9 h. 3. Noter le taux de passage sur deux semaines.'],
+    ['DCUBE', 'Alix', 'En cours', 'Saisi sur le site', false,
+     'Beaucoup de numéros invalides dans la dernière vague',
+     'Demander un fichier re-vérifié avant import dans SkipCall.',
+     '1. Sortir la liste des numéros en erreur. 2. L’envoyer au client. 3. Réimporter après correction.'],
+    ['WEECHOOZ', 'Alexis', 'Résolu', 'Google Sheet', true,
+     'Les RDV pris le vendredi n’apparaissaient pas dans le total de la semaine',
+     'Corrigé : la date de prise était saisie au format texte dans le Sheet.',
+     '1. Reformater la colonne en date. 2. Vérifier les trois dernières semaines.']
+  ]
+};
+/* ============================================================
+   MISE À L'ÉCHELLE
+   ============================================================ */
+const stage = document.getElementById('stage');
+const el = id => document.getElementById(id);
+let scale = 1;
+function fit(){ scale = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${scale})`; }
+addEventListener('resize', fit); fit();
+/* ============================================================
+   REMPLISSAGE DES VUES
+   ============================================================ */
+const fmt = n => n.toLocaleString('fr-FR');
+const commission = v => v <= 10 ? v*20 : 200 + (v-10)*30;
+// Accueil : les six tuiles
+el('tiles-box').innerHTML = [
+  ['Performance', ['12 480','Appels'], ['188','RDV pris']],
+  ['Pilotage', ['46','RDV pris'], ['12','Validés']],
+  ['Rentabilité', ['182 K €','CA total'], ['64 K €','Pipeline']],
+  ['SkipCall', ['34','Séquences'], ['12 480','Contacts']],
+  ['Ticket', ['2','Actifs'], ['1','Effectués']],
+  ['Notion RDV', ['117','Total RDV'], ['5','À reprogrammer']]
+].map(t => `<div class="tile"><h3>→ ${t[0]}</h3><div class="kpis">
+  <div class="kpi"><div class="v">${t[1][0]}</div><div class="l">${t[1][1]}</div></div>
+  <div class="kpi"><div class="v">${t[2][0]}</div><div class="l">${t[2][1]}</div></div></div>
+  <div class="go">→ Voir ${t[0]}</div></div>`).join('');
+el('t-person').innerHTML = D.person.map(p => `<tr><td style="font-weight:900">${p[0]}</td>
+  <td class="num">${fmt(p[1])}</td><td class="num">${fmt(p[2])}</td><td class="num"><span class="bdg">${p[3]}</span></td>
+  <td class="num" style="font-weight:900">${p[4]}</td><td class="num"><span class="bdg">${p[5]}</span></td>
+  <td class="num">${p[6]}</td><td class="num">${p[7]}</td><td class="num">${fmt(p[8])}</td></tr>`).join('');
+el('t-obj').innerHTML = D.obj.map(o => {
+  const pct = Math.round(o[2]/o[1]*100);
+  return `<tr><td style="font-weight:900">${o[0]}</td><td class="num">${o[1]}</td><td class="num">${o[2]}</td>
+    <td class="num"><span class="bdg${pct>=100?' ok':''}">${pct} %</span></td>
+    <td><div class="mini"><i class="${pct>=100?'ok':''}" data-w="${Math.min(100,pct)}"></i></div></td></tr>`;
+}).join('');
+el('t-pilot').innerHTML = D.pilot.map(m => {
+  const pct = Math.round(m[1]/m[6]*100);
+  return `<tr><td style="font-weight:900">${m[0]}</td><td class="num">${m[1]}</td>
+    <td class="num" style="color:var(--green);font-weight:900">${m[2]}</td><td class="num">${m[3]}</td>
+    <td class="num"><span class="bdg">${m[4]}</span></td><td class="num">${m[5]}</td><td class="num">${m[6]}</td>
+    <td class="num"><span class="bdg${pct>=100?' ok':''}">${pct} %</span></td></tr>`;
+}).join('');
+el('cal-head').innerHTML = '<tr><th>Personne</th>' + D.calDays.map(d => `<th class="num">${d}</th>`).join('') + '<th class="num">Total</th></tr>';
+el('cal-body').innerHTML = D.cal.map(r => {
+  const cells = r.slice(1).map(v => {
+    const col = v === 'Présent' ? 'var(--green)' : v === 'En cours' ? 'var(--grey)' : 'var(--red)';
+    return `<td class="num" style="color:${col};font-weight:700;font-size:12.5px">${v}</td>`;
+  }).join('');
+  const tot = r.slice(1).filter(v => v === 'Présent' || v === 'En cours').length;
+  return `<tr><td style="font-weight:900">${r[0]}</td>${cells}<td class="num" style="font-weight:900">${tot} j</td></tr>`;
+}).join('');
+el('t-jours').innerHTML = D.jours.map(j => `<tr><td style="font-weight:900">${j[0]}</td>
+  <td class="num">${j[1]}</td><td class="num">${String(j[2]).replace('.',',')}</td>
+  <td class="num">${String(j[3]).replace('.',',')}</td>
+  <td class="num"><span class="bdg">${j[4].toFixed(2).replace('.',',')}</span></td></tr>`).join('');
+el('t-coms').innerHTML = D.coms.map(c => `<tr><td style="font-weight:900">${c[0]}</td>
+  <td class="num">${c[1]}</td><td class="num" style="color:var(--green);font-weight:900">${c[2]}</td>
+  <td class="num"><span class="bdg">${fmt(commission(c[2]))} €</span></td></tr>`).join('');
+el('t-rent').innerHTML = D.rent.map(r => `<tr>${r.map((c,i) =>
+  `<td class="${i>=3&&i<=8?'num':''}"${i===9?' style="font-weight:900;color:'+(c==='Élevé'?'var(--red)':c==='Moyen'?'#E8A33D':'var(--green)')+'"':''}>${c}</td>`).join('')}</tr>`).join('');
+el('t-alert').innerHTML = D.alerts.map(a => `<tr><td style="font-weight:900">${a[0]}</td><td>${a[1]}</td><td>${a[2]}</td></tr>`).join('');
+// SkipCall
+const bars = list => list.map(t => `<div class="hbar"><span>${t[0]}</span>
+  <div class="track"><div class="fill ${t[2]}" data-w="${Math.round(t[1]/Math.max(...list.map(x=>x[1]))*100)}"></div></div>
+  <span class="n">${fmt(t[1])}</span></div>`).join('');
+el('sc-content').innerHTML = `
+  <div class="kpis">
+    <div class="kpi"><div class="v">12 480</div><div class="l">Appels</div></div>
+    <div class="kpi rate"><div class="v">188</div><div class="l">Tag « RDV pris »</div></div>
+    <div class="kpi"><div class="v">214 h 20</div><div class="l">Durée totale</div></div>
+    <div class="kpi"><div class="v">1 min 02</div><div class="l">Durée moyenne / appel</div></div>
+    <div class="kpi"><div class="v">3 411</div><div class="l">Contacts non appelés</div></div>
+  </div>
+  <div class="grid2" id="sk-rep">
+    <div class="panel"><h3>→ Répartition des tags</h3>${bars(D.tags)}</div>
+    <div class="panel"><h3>→ Statuts des appels</h3>${bars(D.statuts)}</div>
+  </div>
+  <div class="panel" id="sk-seq"><h3>→ Détail par séquence</h3>
+    <table><thead><tr><th>Séquence</th><th class="num">Contacts</th><th class="num">Appels</th>
+    <th class="num">RDV pris</th><th class="num">Durée</th></tr></thead><tbody>
+    ${D.seq.map(s => `<tr><td style="font-weight:700">${s[0]}</td><td class="num">${fmt(s[1])}</td>
+      <td class="num">${fmt(s[2])}</td><td class="num"><span class="bdg">${s[3]}</span></td>
+      <td class="num">${s[4]}</td></tr>`).join('')}
+    </tbody></table></div>`;
+// Notion
+(function(){
+  const miss = Object.keys(D.rdvCounts);
+  const tot = D.rdvStatus.map((s,i) => miss.reduce((a,m) => a + D.rdvCounts[m][i], 0));
+  const grand = tot.reduce((a,b) => a+b, 0);
+  el('rdv-kpis').innerHTML = `<div class="kpi"><div class="v">${grand}</div><div class="l">Total RDV</div></div>` +
+    D.rdvStatus.map((s,i) => `<div class="kpi" style="--red:${s[1]}"><div class="v" style="color:${s[1]}">${tot[i]}</div><div class="l">${s[0]}</div></div>`).join('');
+  el('board').innerHTML = D.rdvStatus.map((s,i) => {
+    const cards = miss.filter(m => D.rdvCounts[m][i] > 0).sort((a,b) => D.rdvCounts[b][i] - D.rdvCounts[a][i])
+      .map(m => `<div class="rc"><span>${m}</span><span style="color:${s[1]}">${D.rdvCounts[m][i]}</span></div>`).join('')
+      || '<div class="note" style="font-size:12px">Aucun</div>';
+    return `<div class="col"><h4><span class="dot" style="background:${s[1]}"></span>${s[0]}<span class="c">${tot[i]}</span></h4>${cards}</div>`;
+  }).join('');
+  el('tabs').innerHTML = miss.map((m,i) => `<div class="tab${i===0?' act':''}" data-m="${m}">${m}</div>`).join('');
+  el('rdv-detail').innerHTML = `<table><thead><tr><th>Nom du RDV</th><th>Statut</th><th>Organisation</th>
+    <th>Date RDV</th><th>Lieu</th><th>Pris par</th><th>Personne</th></tr></thead><tbody id="rdv-rows">` +
+    D.rdvDetail.map((r,i) => {
+      const c = (D.rdvStatus.find(s => s[0] === r[1]) || ['','#0A0A0A'])[1];
+      return `<tr${i===0?' id="rdv-row0"':''}><td style="font-weight:900">${r[0]}</td>
+        <td style="color:${c};font-weight:800">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td>
+        <td>${r[4]}</td><td>${r[5]}</td><td>${r[6]}</td></tr>`;
+    }).join('') + '</tbody></table>';
+})();
+// Tickets
+function renderProbs(){
+  const act = D.probs.filter(p => !p[4]), done = D.probs.filter(p => p[4]);
+  const grp = list => {
+    const by = {};
+    list.forEach(p => (by[p[0]] = by[p[0]] || []).push(p));
+    return Object.keys(by).sort().map(m =>
+      `<div class="mhead">${m} <span class="c">${by[m].length} problématique${by[m].length>1?'s':''}</span></div>` +
+      by[m].map(p => `<div class="prob${p[4]?' done':''}">
+        <div class="pacts"><span>${p[4]?'↩ Réactiver':'✓ Effectué'}</span>${p[3]==='Saisi sur le site'&&!p[4]?'<span>✕ Supprimer</span>':''}</div>
+        <div class="meta"><span class="t">30/07/2026</span><span class="t">${p[1]}</span>
+          <span class="t st${p[4]?' ok':''}">${p[4]?'Effectué':p[2]}</span><span class="t">${p[3]}</span></div>
+        <h4>${p[5]}</h4>
+        <div class="blk"><b>→ Solution</b><p>${p[6]}</p></div>
+        <div class="blk"><b>→ Marche à suivre</b><p>${p[7]}</p></div></div>`).join('')
+    ).join('');
+  };
+  el('probs-list').innerHTML = grp(act) +
+    (done.length ? `<div class="mhead" style="margin-top:26px;color:var(--green)">Historique <span class="c">${done.length} effectué${done.length>1?'s':''}</span></div>` + grp(done) : '');
+}
+renderProbs();
+/* ---------- Graphiques ---------- */
+const WK = ['S22','S23','S24','S25','S26','S27','S28','S29','S30','S31'];
+const AP = [980,1120,1040,1310,1250,1420,1380,1510,1290,1180];
+const DE = [244,289,258,332,318,361,346,388,321,259];
+const RD = [14,18,16,22,20,25,23,27,19,14];
+function line(svgId, pid, arr, max, x0,x1,y0,y1){
+  const px = i => x0 + i*(x1-x0)/(arr.length-1);
+  const py = v => y0 - (v/max)*(y0-y1);
+  el(pid).setAttribute('d', arr.map((v,i) => (i?'L':'M')+px(i)+' '+py(v)).join(' '));
+}
+line('ch-evo','evo-a',AP,1600,50,1700,300,20);
+line('ch-evo','evo-b',DE,1600,50,1700,300,20);
+line('ch-rate','rate-a',[24.9,25.8,24.8,25.3,25.4,25.4,25.1,25.7,24.9,21.9],40,50,1700,220,20);
+line('ch-rate','rate-b',[1.4,1.6,1.5,1.7,1.6,1.8,1.7,1.8,1.5,1.2],40,50,1700,220,20);
+(function(){
+  const g = el('evo-bars'), lab = el('evo-lab');
+  WK.forEach((w,i) => {
+    const x = 50 + i*(1700-50)/(WK.length-1), h = (RD[i]/40)*280;
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x', x-26); r.setAttribute('width',52); r.setAttribute('y',300-h);
+    r.setAttribute('height',h); r.setAttribute('rx',5); r.setAttribute('fill','var(--border)');
+    r.style.transformOrigin = 'center 300px'; r.style.transform = 'scaleY(0)';
+    g.appendChild(r);
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',x); t.setAttribute('y',326); t.setAttribute('text-anchor','middle');
+    t.textContent = w; lab.appendChild(t);
+  });
+})();
+el('bars-person').innerHTML = bars(D.person.map(p => [p[0], p[1], '']));
+el('bars-mission').innerHTML = bars(D.obj.map(o => [o[0], o[2]*140, '']).map(x => [x[0], x[1]/140*100|0, '']));
+function playChart(){
+  [['evo-a',0],['evo-b',.2],['rate-a',0],['rate-b',.2]].forEach(([id,d]) => {
+    const p = el(id), L = p.getTotalLength();
+    p.style.transition='none'; p.style.strokeDasharray=L; p.style.strokeDashoffset=L;
+    requestAnimationFrame(() => { p.style.transition=`stroke-dashoffset 1.6s cubic-bezier(.5,0,.2,1) ${d}s`;
+      p.style.strokeDashoffset=0; });
+  });
+  [...el('evo-bars').children].forEach((r,i) => {
+    r.style.transition='none'; r.style.transform='scaleY(0)';
+    setTimeout(() => { r.style.transition='transform .6s cubic-bezier(.16,.84,.3,1)'; r.style.transform='scaleY(1)'; }, 60+i*60);
+  });
+}
+function playFills(root){
+  root.querySelectorAll('[data-w]').forEach((f,i) => {
+    f.style.transition='none'; f.style.width='0';
+    setTimeout(() => { f.style.transition='width .85s cubic-bezier(.16,.84,.3,1)'; f.style.width=f.dataset.w+'%'; }, 100+i*70);
+  });
+}
+const easeOut = t => 1 - Math.pow(1-t,3);
+function countIn(root){
+  root.querySelectorAll('[data-c],[data-t]').forEach(n => {
+    if (n.dataset.t){ n.textContent = n.dataset.t; return; }
+    const target = parseFloat(n.dataset.c), dec = n.dataset.c.includes('.') ? 1 : 0, suf = n.dataset.s || '';
+    const t0 = performance.now();
+    (function s(now){ const k = Math.min(1,(now-t0)/1200), v = target*easeOut(k);
+      n.textContent = (dec ? v.toFixed(1).replace('.',',') : Math.round(v).toLocaleString('fr-FR')) + suf;
+      if (k<1) requestAnimationFrame(s); })(performance.now());
+  });
+}
+/* ============================================================
+   OUTILS DE MISE EN SCÈNE
+   ============================================================ */
+const cur = el('cur'), rip = el('rip'), doc = el('doc'), capt = el('capt'), captx = el('captx');
+const VIEWS = ['home','perf','pilot','rent','skip','rdv','probs'];
+const VNAME = {home:'Accueil', perf:'Performance', pilot:'Pilotage', rent:'Rentabilité',
+  skip:'SkipCall', rdv:'Notion', probs:'Ticket'};
+function center(sel){
+  const e = document.querySelector(sel); if (!e) return [960,540];
+  const a = e.getBoundingClientRect(), b = stage.getBoundingClientRect();
+  return [(a.left-b.left)/scale + a.width/2/scale, (a.top-b.top)/scale + a.height/2/scale];
+}
+function moveTo(sel, ms){
+  const [x,y] = center(sel);
+  cur.style.transitionDuration = (ms/1000)+'s';
+  cur.style.transform = `translate(${x}px,${y}px)`;
+}
+function clickFx(){
+  const m = cur.style.transform.match(/translate\(([\d.-]+)px,\s*([\d.-]+)px\)/);
+  if (m){ rip.style.left = m[1]+'px'; rip.style.top = m[2]+'px'; }
+  rip.classList.remove('go'); void rip.offsetWidth; rip.classList.add('go');
+}
+function setView(v){
+  VIEWS.forEach(k => el('v-'+k).classList.toggle('on', k === v));
+  document.querySelectorAll('.vpop b').forEach(b => b.classList.toggle('act', b.id === 'vi-'+v));
+  el('b-view').textContent = '→ ' + VNAME[v];
+  doc.style.transition='none'; doc.style.transform='translateY(0)';
+  el('chip').textContent = '→ ' + VNAME[v]; el('chip').classList.add('on');
+}
+function scrollTo(y, ms){ doc.style.transition = `transform ${ms}ms cubic-bezier(.4,0,.2,1)`;
+  doc.style.transform = `translateY(${-y}px)`; }
+// Cale le haut du panneau juste sous le bandeau, sans jamais dépasser le bas du contenu
+function scrollToEl(sel, ms){
+  const e = document.querySelector(sel);
+  if (!e){ scrollTo(0, ms); return; }
+  const vpH = el('vp').clientHeight;
+  const max = Math.max(0, doc.scrollHeight - vpH + 20);
+  const y = Math.max(0, Math.min(e.offsetTop - 22, max));
+  scrollTo(y, ms);
+}
+function cap(t){
+  if (!t){ capt.classList.remove('on'); return; }
+  capt.classList.remove('on');
+  setTimeout(() => { captx.textContent = t; capt.classList.add('on'); }, 170);
+}
+function toast(t){ el('toast').innerHTML = '<i>→</i>'+t; el('toast').classList.add('open');
+  setTimeout(() => el('toast').classList.remove('open'), 3800); }
+function modal(open){ el('scrim').classList.toggle('open', open); el('m-rdv').classList.toggle('open', open); }
+function seg(id, key, val){ el(id).querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset[key] === val)); }
+function card(id, on){ ['c-in','c-out'].forEach(k => el(k).classList.toggle('on', k === id && on)); }
+/* ============================================================
+   SCÉNARIO
+   ============================================================ */
+const S = [], MARKS = [];
+// Chaque sous-titre reste affiché le temps d'être lu (voir HOLD dans le lecteur)
+const cap_ = t => S.push({ d:0, isCap:1, txt:t, f:() => cap(t) });
+const say  = cap_;
+const to   = (sel, d=1000) => S.push({ d, f:() => moveTo(sel, d*.85) });
+const clk  = (f, d=480) => S.push({ d, f:() => { clickFx(); if (f) setTimeout(f, 130); } });
+const act  = (f, d=0) => S.push({ d, f });
+const wait = d => S.push({ d, f:null });
+const scr  = (y, d=1300) => S.push({ d, f:() => scrollTo(y, d*.9) });
+const scrTo = (sel, d=1300) => S.push({ d, f:() => scrollToEl(sel, d*.9) });
+function chapter(n, title, desc, setup){
+  MARKS.push(S.length);
+  S.push({ d:0, f:() => { if (setup) setup(); } });
+  S.push({ d:3400, f:() => {
+    el('ch-n').textContent = 'Chapitre ' + n;
+    el('ch-t').textContent = title;
+    el('ch-d').textContent = desc;
+    el('chapcard').classList.remove('on'); void el('chapcard').offsetWidth;
+    el('chapcard').classList.add('on');
+    cap(''); el('chip').classList.remove('on');
+  }});
+  S.push({ d:400, f:() => { el('chapcard').classList.remove('on'); } });
+}
+/* --- Ouverture --- */
+MARKS.push(0);
+act(() => { card('c-in', true); cap(''); el('chip').classList.remove('on'); setView('home'); });
+say("Ce tutoriel présente le Reporting SDR de GROF, page par page. À la fin, tu sauras exactement quelle page ouvrir selon la question que tu te poses.");
+wait(6500);
+act(() => card('c-in', false));
+/* ===================== CH1 · SOURCES ===================== */
+chapter(1, 'Les sources de données', "L'outil ne stocke rien. Il lit quatre sources et les affiche au même endroit.",
+  () => { card('c-in', false); setView('home'); scrollTo(0, 200); });
+act(() => { el('chapcard').classList.add('on'); }, 200);
+say("Première chose à comprendre : cet outil n'est pas une base de données. Il ne stocke rien du tout. Il va chercher quatre sources et les affiche ensemble.");
+wait(1000);
+say("Un premier Google Sheet, un onglet par personne, où chaque SDR remplit sa journée. C'est ce qui alimente la vue Performance.");
+wait(1000);
+say("Un deuxième Sheet, celui du Head of Delivery, pour la partie financière. L'API SkipCall pour le composeur. Et les bases Notion pour les rendez-vous.");
+wait(1000);
+say("Donc si un chiffre est faux ici, il est faux dans la source. On corrige dans le Sheet ou dans Notion, jamais dans l'outil.");
+act(() => el('chapcard').classList.remove('on'), 600);
+/* ===================== CH2 · BANDEAU + ACCUEIL ===================== */
+chapter(2, "Le bandeau et l'accueil", "Le menu commun à toutes les pages, puis la page d'entrée.",
+  () => { setView('home'); scrollTo(0, 200); el('vpop').classList.remove('open'); });
+cap_("Le bandeau du haut est identique sur toutes les pages.");
+to('#b-home', 900); wait(1000);
+cap_("L'icône maison ramène à l'accueil, et le bouton noir ouvre le menu des six vues.");
+to('#b-view', 900);
+clk(() => el('vpop').classList.add('open'), 700);
+cap_("Pilotage, Rentabilité, Performance, SkipCall, Notion et Ticket. Retiens ces six noms, on les voit un par un.");
+wait(3200);
+clk(() => el('vpop').classList.remove('open'), 600);
+cap_("À droite, l'horodatage du dernier chargement, puis deux bascules.");
+to('.upd', 900); wait(1600);
+cap_("Mode mobile, et thème sombre. Les deux choix sont mémorisés dans ton navigateur.");
+to('#b-mob', 800);
+clk(() => { stage.classList.add('mob'); el('b-mob').classList.add('on'); }, 900);
+wait(2400);
+clk(() => { stage.classList.remove('mob'); el('b-mob').classList.remove('on'); }, 900);
+to('#b-theme', 800);
+clk(() => { stage.classList.add('dark'); el('b-theme').classList.add('on'); el('b-theme').textContent = '☀'; }, 900);
+wait(2200);
+clk(() => { stage.classList.remove('dark'); el('b-theme').classList.remove('on'); el('b-theme').textContent = '☾'; }, 800);
+cap_("L'accueil, maintenant. Il sert à savoir en dix secondes si tout va bien.");
+act(() => countIn(el('v-home')), 600);
+wait(1800);
+cap_("En haut, une barre de période qui pilote les chiffres de Performance et de Pilotage.");
+to('#h-preset button[data-p="week"]', 900);
+clk(() => seg('h-preset','p','week'), 700);
+wait(1400);
+act(() => seg('h-preset','p','month'));
+cap_("Le panneau « L'essentiel » rassemble huit chiffres pris dans les autres vues, des appels jusqu'aux tickets ouverts.");
+wait(4500);
+cap_("Puis six tuiles, une par vue, chacune avec deux indicateurs et un bouton qui t'y emmène directement.");
+scrTo('#tiles-box', 1400);
+wait(3200);
+cap_("L'accueil ne calcule rien lui-même : il attend le résultat des autres vues. C'est pour ça que les chiffres arrivent progressivement.");
+wait(4500);
+/* ===================== CH3 · PERFORMANCE ===================== */
+chapter(3, 'Performance', "L'activité d'appels dans le détail, filtrée comme tu veux.",
+  () => { setView('perf'); scrollTo(0, 200); el('datepop').classList.remove('open'); el('pdfpop').classList.remove('open'); });
+act(() => { countIn(el('v-perf')); playFills(el('v-perf')); }, 400);
+cap_("La vue Performance est la plus détaillée. Elle lit le Google Sheet où chaque SDR remplit sa journée.");
+wait(2600);
+cap_("Cinq filtres. Personne, pour isoler un SDR ou garder toute l'équipe.");
+to('#f-person', 900); wait(1400);
+cap_("Mission, pour ne voir qu'un seul client.");
+to('#f-mission', 800); wait(1300);
+cap_("Granularité : le pas des graphiques. Ça ne change pas les totaux, seulement le découpage des courbes.");
+to('#f-gran button[data-g="week"]', 900);
+clk(() => seg('f-gran','g','week'), 700);
+wait(2600);
+cap_("Période, avec cinq raccourcis, de hier jusqu'à tout l'historique.");
+to('#f-preset button[data-p="month"]', 900);
+clk(() => seg('f-preset','p','month'), 700);
+wait(1800);
+cap_("Et Dates, pour une plage sur mesure. Début, fin, Appliquer.");
+to('#f-range', 900);
+clk(() => el('datepop').classList.add('open'), 650);
+to('#d-from', 750);
+clk(() => { el('d-from').textContent = '01/07/2026'; el('d-from').classList.add('hot'); }, 550);
+to('#d-to', 650);
+clk(() => { el('d-to').textContent = '30/07/2026'; el('d-to').classList.add('hot'); }, 550);
+to('#d-apply', 650);
+clk(() => { el('datepop').classList.remove('open'); el('f-range').textContent = '01/07/2026 → 30/07/2026';
+  el('f-range').style.borderColor = 'var(--red)'; seg('f-preset','p',''); }, 800);
+wait(1200);
+cap_("Dix indicateurs suivent : appels, décrochés, taux de décroché, rendez-vous pris, taux de rendez-vous.");
+wait(4200);
+cap_("Puis validés en vert, invalidés, durée totale, no-show et reprogrammés.");
+wait(4000);
+cap_("Attention à une nuance : validés et invalidés viennent de Notion, pas du Sheet. Les autres chiffres viennent du Sheet.");
+wait(3800);
+cap_("Le détail par personne classe l'équipe sur les mêmes neuf colonnes.");
+scrTo('#p-detail', 1400); wait(3600);
+cap_("Les objectifs par mission comparent l'objectif mensuel au nombre pris sur la période choisie. Si tu filtres sur une semaine, l'objectif reste mensuel : c'est voulu.");
+scrTo('#p-obj', 1400); wait(5600);
+cap_("Deux graphiques d'évolution, un pour les volumes, un pour les taux, découpés selon la granularité.");
+scrTo('#p-evo', 1500);
+act(() => playChart(), 300);
+wait(4200);
+cap_("Et deux répartitions, par personne et par mission.");
+scrTo('#p-rep', 1500); wait(3200);
+cap_("Enfin l'export PDF : une mission, une semaine ou un mois, et tu obtiens un rapport aux couleurs GROF prêt à envoyer.");
+scr(0, 1000);
+to('#f-pdf', 900);
+clk(() => el('pdfpop').classList.add('open'), 700);
+to('#x-mission', 800);
+clk(() => { el('x-mission').textContent = 'DCUBE'; el('x-mission').classList.add('hot'); }, 550);
+to('#x-go', 800);
+clk(() => { el('pdfpop').classList.remove('open'); toast('Rapport DCUBE · semaine 31 généré. Téléchargement lancé.'); }, 900);
+wait(2600);
+/* ===================== CH4 · PILOTAGE ===================== */
+chapter(4, 'Pilotage', "Le suivi managérial : objectifs, présences, commissions.",
+  () => { setView('pilot'); scrollTo(0, 200); });
+act(() => { countIn(el('v-pilot')); }, 400);
+cap_("Le Pilotage sert aux points d'équipe. Trois filtres : mission, période libre, et quatre raccourcis.");
+to('#pl-preset button[data-p="lastmonth"]', 900);
+clk(() => seg('pl-preset','p','lastmonth'), 700);
+wait(1600);
+act(() => seg('pl-preset','p','month'));
+cap_("Cinq indicateurs en haut : rendez-vous pris, validés, invalidés, taux de validation et no-show. Tous viennent de Notion.");
+wait(3800);
+cap_("Les top performeurs affichent les records depuis le premier janvier, avec le nom et la date.");
+scrTo('#pl-top', 1300); wait(4600);
+cap_("Le tableau de pilotage par mission reprend les mêmes colonnes, plus l'objectif mensuel et l'avancement.");
+scrTo('#pl-tab', 1300); wait(3200);
+cap_("Les présences viennent des Sheets préparatoires de chaque SDR. Les flèches changent de semaine.");
+scrTo('#pl-cal', 1400);
+to('#cal-prev', 900);
+clk(() => el('cal-lab').textContent = 'Semaine du 20/07 au 26/07/2026', 700);
+wait(2200);
+to('#cal-next', 700);
+clk(() => el('cal-lab').textContent = 'Semaine du 27/07 au 02/08/2026', 700);
+cap_("Un statut par jour : présent, congés, férié, arrêt maladie, ou en cours si rien n'est saisi.");
+wait(3400);
+cap_("Les ratios divisent l'activité par les jours réellement travaillés. C'est ce qui rend comparables un temps plein et un arrivé en cours de mois.");
+scrTo('#pl-jt', 1400); wait(4800);
+cap_("Les commissions appliquent le barème : vingt euros par rendez-vous validé, trente au-delà du dixième dans le mois.");
+scrTo('#pl-com', 1400); wait(4200);
+cap_("Seuls les validés comptent : un rendez-vous invalidé ne déclenche aucune commission.");
+wait(3600);
+/* ===================== CH5 · RENTABILITÉ ===================== */
+chapter(5, 'Rentabilité', "La seule page qui parle d'argent, et elle vient d'un autre fichier.",
+  () => { setView('rent'); scrollTo(0, 200); });
+act(() => countIn(el('v-rent')), 400);
+cap_("La Rentabilité est à part : elle parle d'argent, et elle lit un autre fichier, celui du Head of Delivery.");
+wait(4600);
+cap_("En haut, les indicateurs financiers repris tels quels. L'outil abrège seulement les montants.");
+wait(4000);
+cap_("Puis le tableau des missions : statut, go ou no-go, marge nette, delta de disponibilité, pipeline, signé, et niveau de risque.");
+scrTo('#r-miss', 1300); wait(5400);
+cap_("Puis les alertes à traiter. Elles sont écrites dans le Sheet, pas calculées ici.");
+scrTo('#r-alert', 1300); wait(3800);
+cap_("Si la page affiche une erreur, c'est presque toujours le partage du Sheet. Le lien en haut l'ouvre.");
+scr(0, 900); wait(4000);
+/* ===================== CH6 · SKIPCALL ===================== */
+chapter(6, 'SkipCall', "Ce que deviennent réellement les appels passés par le composeur.",
+  () => { setView('skip'); scrollTo(0, 200); });
+cap_("SkipCall interroge l'API du composeur. Différence importante : la page ne s'affiche pas toute seule.");
+wait(3600);
+cap_("Tu choisis d'abord une mission et une période, puis tu cliques sur Afficher. Sinon la page reste vide.");
+to('#sc-mission', 900); wait(1200);
+to('#sc-preset button[data-p="week"]', 800);
+clk(() => seg('sc-preset','p','week'), 650);
+to('#sc-go', 800);
+clk(() => { playFills(el('v-skip')); }, 900);
+wait(2000);
+cap_("Sans mission, l'outil agrège tout. Avec une mission, il interroge chaque séquence, et au-delà de vingt il prévient qu'il s'arrête aux vingt premières.");
+wait(5200);
+cap_("Cinq indicateurs, dont la durée moyenne par appel et les contacts jamais appelés.");
+wait(4400);
+cap_("Les tags, c'est la conclusion posée par le SDR après l'appel. On y voit où part le temps.");
+scrTo('#sk-rep', 1300); wait(3800);
+cap_("Les statuts, à droite, sont techniques : ils viennent du composeur, pas du SDR.");
+wait(4400);
+cap_("Ne confonds pas les deux : un appel peut être connecté techniquement et taggé pas intéressé.");
+wait(3200);
+cap_("Enfin le détail par séquence, pour comparer les campagnes, et un export PDF dédié.");
+scrTo('#sk-seq', 1400); wait(4000);
+/* ===================== CH7 · NOTION ===================== */
+chapter(7, 'Notion', "Consulter et créer les rendez-vous sans quitter l'outil.",
+  () => { setView('rdv'); scrollTo(0, 200); modal(false); });
+cap_("La vue Notion affiche les rendez-vous tels qu'ils existent dans les bases Notion des missions.");
+wait(2800);
+cap_("Si la connexion est active, les chiffres sont en direct. Sinon, un instantané daté, signalé en bas. Vérifie cette ligne avant de citer un chiffre.");
+to('#rdv-note', 1100); wait(5000);
+cap_("En haut, le total et un compteur par statut : à reprogrammer, programmé, validé, invalidé, archivé.");
+wait(3800);
+cap_("En dessous, le même découpage en colonnes, une carte par mission.");
+wait(3800);
+cap_("Le bloc suivant donne le détail : un onglet par mission.");
+scrTo('#n-detail', 1300);
+to('.tab:nth-child(2)', 900);
+clk(() => { document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('act', i === 1)); }, 800);
+wait(2000);
+cap_("Un clic sur une ligne ouvre la fiche : statut, date, lieu, coordonnées, et remplacement du MP3.");
+to('#rdv-row0', 900);
+clk(() => { el('rdv-row0').classList.add('pick'); modal(true); }, 900);
+wait(2600);
+to('#e-statut', 800);
+clk(() => { el('e-statut').textContent = 'RDV validé'; el('e-statut').style.color = 'var(--green)';
+  el('e-statut').style.borderColor = 'var(--green)'; }, 700);
+to('#e-go', 800);
+clk(() => { modal(false); el('rdv-row0').classList.remove('pick');
+  toast('Statut enregistré dans la base Notion de la mission.'); }, 900);
+wait(2400);
+cap_("Le dernier bloc crée un rendez-vous. Quinze champs, calqués sur les propriétés de la base Notion.");
+scrTo('#n-new', 1400); wait(3600);
+cap_("Mission, statut, prospect, organisation, contact, date et heure, lieu, qui l'a pris, qui le fait, et un MP3 optionnel.");
+to('#n-mission', 900);
+clk(() => { el('n-mission').textContent = 'DCUBE'; el('n-mission').classList.remove('ph'); el('n-mission').classList.add('hot'); }, 500);
+to('#n-nom', 700);
+clk(() => { el('n-nom').textContent = 'Groupe Lartigue'; el('n-nom').classList.remove('ph'); el('n-nom').classList.add('hot'); }, 500);
+to('#n-date', 700);
+clk(() => { el('n-date').textContent = '18/08/2026 10:30'; el('n-date').classList.remove('ph'); el('n-date').classList.add('hot'); }, 500);
+to('#n-lieu', 700);
+clk(() => { el('n-lieu').textContent = 'Visio'; el('n-lieu').classList.remove('ph'); el('n-lieu').classList.add('hot'); }, 500);
+to('#n-prispar', 700);
+clk(() => { el('n-prispar').textContent = 'Alexis'; el('n-prispar').classList.remove('ph'); el('n-prispar').classList.add('hot'); }, 500);
+cap_("Seul le nom du prospect est obligatoire, mais plus tu remplis, moins quelqu'un repasse derrière.");
+to('#n-go', 900);
+clk(() => toast('RDV créé dans la base Notion « RDV Pris · DCUBE ».'), 900);
+wait(3400);
+/* ===================== CH8 · TICKET ===================== */
+chapter(8, 'Ticket', "Remonter ce qui bloque sur le terrain, et garder la trace.",
+  () => { setView('probs'); scrollTo(0, 200); });
+cap_("Dernière vue : Ticket. C'est la seule page où le terrain écrit vraiment quelque chose.");
+wait(4000);
+cap_("Mission, personne, statut libre, puis trois champs : problème, solution, marche à suivre.");
+to('#p-mission', 900);
+clk(() => { el('p-mission').textContent = 'SPECTRUM'; el('p-mission').classList.remove('ph'); el('p-mission').classList.add('hot'); }, 550);
+to('#p-prob', 800);
+clk(() => { el('p-prob').textContent = "Le standard filtre, on n'atteint pas le décideur"; el('p-prob').classList.remove('ph'); el('p-prob').classList.add('hot'); }, 650);
+to('#p-sol', 700);
+clk(() => { el('p-sol').textContent = "Tester les appels avant 9 h"; el('p-sol').classList.remove('ph'); el('p-sol').classList.add('hot'); }, 650);
+cap_("Le troisième champ est le plus utile : c'est lui qui transforme une plainte en action.");
+to('#p-marche', 800);
+clk(() => { el('p-marche').textContent = "1. Extraire les comptes bloqués. 2. Rappeler entre 8 h 15 et 9 h. 3. Mesurer sur deux semaines."; el('p-marche').classList.remove('ph'); el('p-marche').classList.add('hot'); }, 700);
+to('#p-go', 800);
+clk(() => toast("Problématique enregistrée dans l'onglet « Problèmes » du Google Sheet."), 900);
+wait(2400);
+cap_("Les tickets sont regroupés par mission. Chaque carte indique sa date, son auteur, son statut et sa source.");
+scrTo('#probs-list', 1400); wait(4400);
+cap_("Effectué bascule la fiche dans l'historique, Réactiver la fait revenir. Seules les fiches saisies sur le site sont supprimables.");
+wait(5400);
+/* ===================== FIN ===================== */
+MARKS.push(S.length);
+act(() => { card('c-out', true); cap(''); el('chip').classList.remove('on');
+  el('out-sub').innerHTML = "Performance et SkipCall répondent à « combien d'appels ».<br>Pilotage et Notion répondent à « combien de rendez-vous ».<br>Rentabilité répond à « combien ça rapporte ».<br>Ticket sert à signaler ce qui bloque."; });
+say("Pour résumer. Accueil pour le coup d'œil. Performance pour les appels en détail. Pilotage pour les objectifs, les présences et les commissions. Rentabilité pour l'argent. SkipCall pour le composeur. Notion pour les rendez-vous. Ticket pour signaler ce qui bloque.");
+wait(12000);
+say("Et rappelle-toi : l'outil ne fait qu'afficher. Toute correction se fait dans le Sheet ou dans Notion.");
+wait(7000);
+/* ============================================================
+   LECTEUR
+   ============================================================ */
+const TOTAL = S.reduce((a,s) => a + s.d, 0);
+let i = 0, timer = null, t0 = 0, rest = 0, paused = false, raf = null, doneMs = 0;
+let capShownAt = 0, capNeed = 0;
+// ~175 mots/minute de lecture confortable, plancher de 2,4 s
+const readMs = t => Math.max(2400, 950 + t.split(/\s+/).length * 343);
+function step(){
+  if (i >= S.length) return finish();
+  const s = S[i];
+  // HOLD : on n'enchaîne pas tant que le sous-titre précédent n'a pas eu son temps de lecture
+  if (s.isCap && s.txt && capShownAt && performance.now() - capShownAt < capNeed){
+    timer = setTimeout(step, 180); return;
+  }
+  if (s.f) s.f();
+  if (s.isCap && s.txt){ capShownAt = performance.now(); capNeed = readMs(s.txt); }
+  t0 = performance.now(); rest = s.d;
+  timer = setTimeout(() => { doneMs += S[i].d; i++; step(); }, s.d);
+}
+function finish(){
+  clearTimeout(timer); cancelAnimationFrame(raf);
+  el('prog').style.width = '100%'; el('pp').textContent = 'Rejouer'; paused = true;
+  if (REC && REC.state !== 'inactive') setTimeout(() => REC.stop(), 900);
+}
+function tick(){
+  const e = doneMs + (paused ? 0 : performance.now() - t0);
+  el('prog').style.width = Math.min(100, e/TOTAL*100) + '%';
+  const sec = Math.floor(e/1000);
+  el('tc').textContent = String(Math.floor(sec/60)).padStart(2,'0') + ':' + String(sec%60).padStart(2,'0');
+  raf = requestAnimationFrame(tick);
+}
+function jump(dir){
+  const cur = MARKS.filter(m => m <= i).length - 1;
+  const target = MARKS[Math.max(0, Math.min(MARKS.length-1, cur + dir))];
+  if (target === undefined) return;
+  clearTimeout(timer);
+  i = target; doneMs = S.slice(0, i).reduce((a,s) => a + s.d, 0); capShownAt = 0;
+  paused = false; el('pp').textContent = 'Pause';
+  step();
+}
+el('pp').onclick = () => {
+  if (el('pp').textContent === 'Rejouer') return location.reload();
+  paused = !paused;
+  if (paused){
+    clearTimeout(timer); rest = S[i].d - (performance.now() - t0);
+    el('pp').textContent = 'Lire';
+  } else {
+    t0 = performance.now() - (S[i].d - rest);
+    timer = setTimeout(() => { doneMs += S[i].d; i++; step(); }, Math.max(80, rest));
+    el('pp').textContent = 'Pause';
+  }
+};
+el('rw').onclick = () => location.reload();
+el('next').onclick = () => jump(1);
+el('prev').onclick = () => jump(-1);
+el('hide').onclick = () => hud.classList.add('hidden');
+addEventListener('keydown', e => {
+  if (e.code === 'Space'){ e.preventDefault(); el('pp').click(); }
+  if (e.key === 'r' || e.key === 'R') location.reload();
+  if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
+  if (e.key === 'h' || e.key === 'H') hud.classList.toggle('hidden');
+  if (e.key === 's' || e.key === 'S'){ if (REC && REC.state !== 'inactive') REC.stop(); }
+  if (e.key === 'ArrowRight') jump(1);
+  if (e.key === 'ArrowLeft') jump(-1);
+});
+function launch(){
+  el('gate').classList.add('off');
+  setTimeout(() => { step(); tick(); }, 250);
+}
+el('g-go').onclick = launch;
+/* ============================================================
+   ENREGISTREMENT VIDÉO INTÉGRÉ
+   Le navigateur filme son propre onglet et produit le fichier.
+   Aucun logiciel à installer.
+   ============================================================ */
+let REC = null, CHUNKS = [], RECMIME = '';
+function pickMime(){
+  const c = ['video/mp4;codecs=avc1.42E01E', 'video/mp4',
+             'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+  return c.find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+}
+async function startRecording(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder){
+    alert("Ce navigateur ne sait pas enregistrer la page. Utilise Chrome ou Edge, ou passe par un enregistreur d'écran.");
+    return;
+  }
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30, width: 1920, height: 1080 },
+      audio: false, preferCurrentTab: true
+    });
+  }catch(e){ return; } // l'utilisateur a annulé
+  RECMIME = pickMime();
+  CHUNKS = [];
+  try{
+    REC = new MediaRecorder(stream, RECMIME ? { mimeType: RECMIME, videoBitsPerSecond: 8000000 } : undefined);
+  }catch(e){ REC = new MediaRecorder(stream); }
+  REC.ondataavailable = ev => { if (ev.data && ev.data.size) CHUNKS.push(ev.data); };
+  REC.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    const type = (REC && REC.mimeType) || RECMIME || 'video/webm';
+    const ext = type.includes('mp4') ? 'mp4' : 'webm';
+    const blob = new Blob(CHUNKS, { type });
+    const url = URL.createObjectURL(blob);
+    const a = el('done-dl');
+    a.href = url; a.download = 'tuto-reporting-sdr.' + ext;
+    el('done-sub').innerHTML = 'Format ' + ext.toUpperCase() + ' · ' +
+      (blob.size/1048576).toFixed(1).replace('.', ',') + ' Mo · 7 min 55' +
+      (ext === 'webm' ? "<br><br>Ton navigateur a produit du WebM. Pour obtenir du MP4, dépose le fichier sur un convertisseur en ligne, ou utilise ffmpeg." : '');
+    el('recbadge').classList.remove('on');
+    el('done').classList.add('on');
+    try{ a.click(); }catch(e){}
+  };
+  // si l'utilisateur coupe le partage depuis la barre du navigateur
+  stream.getVideoTracks()[0].addEventListener('ended', () => { if (REC && REC.state !== 'inactive') REC.stop(); });
+  REC.start(1000);
+  el('recbadge').classList.add('on');
+  hud.classList.add('hidden');
+  launch();
+}
+el('g-rec').onclick = startRecording;
+/* ---------- Barre d'action : auto-masquage pour un enregistrement propre ---------- */
+const hud = el('hud');
+let hudT = null;
+function showHud(){
+  hud.classList.add('show');
+  clearTimeout(hudT);
+  hudT = setTimeout(() => hud.classList.remove('show'), 2200);
+}
+addEventListener('mousemove', showHud);
+showHud();
+</script>
+</body>
+</html>
