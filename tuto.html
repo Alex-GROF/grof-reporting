@@ -1300,10 +1300,16 @@ async function startRecording(){
   let stream;
   try{
     stream = await navigator.mediaDevices.getDisplayMedia({
-      video: { frameRate: 30, width: 1920, height: 1080 },
+      video: { frameRate: 30, width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false, preferCurrentTab: true
     });
-  }catch(e){ return; } // l'utilisateur a annulé
+  }catch(e){
+    console.warn('getDisplayMedia a échoué', e);
+    if (e && e.name !== 'NotAllowedError'){
+      alert("Le partage d'écran n'a pas pu démarrer (" + (e && e.name || 'erreur inconnue') + "). Réessaie, et choisis bien « Onglet actuel » dans la fenêtre de partage.");
+    }
+    return;
+  }
   RECMIME = pickMime();
   CHUNKS = [];
   try{
