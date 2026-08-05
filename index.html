@@ -233,6 +233,23 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
           <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="exportPDF()">→ Générer le PDF</button>
         </div>
       </div>
+
+      <div class="filter range-wrap"><label>&nbsp;</label>
+        <button class="range-btn" style="min-width:auto;background:var(--invert);color:var(--invert-text);border-color:var(--invert)" onclick="toggleRange('padd')">+ Ajouter une entrée</button>
+        <div class="range-pop" id="padd-pop" style="max-height:75vh;overflow-y:auto">
+          <label>Personne</label><select id="padd-personne" onchange="loadPaddMissions()"></select>
+          <label>Mission</label><select id="padd-mission"></select>
+          <label>Date</label><input type="date" id="padd-date">
+          <label>Durée (min)</label><input type="number" id="padd-duree" min="0" value="0">
+          <label>Appels</label><input type="number" id="padd-appels" min="0" value="0">
+          <label>Décrochés</label><input type="number" id="padd-connectes" min="0" value="0">
+          <label>RDV pris</label><input type="number" id="padd-rdv" min="0" value="0">
+          <label>No-show</label><input type="number" id="padd-noshow" min="0" value="0">
+          <label>Reprogrammés</label><input type="number" id="padd-reprog" min="0" value="0">
+          <div id="padd-msg" style="font-size:12px;min-height:14px"></div>
+          <button class="btn-add" style="grid-column:auto;justify-self:stretch" onclick="submitPerfAdd()">→ Enregistrer</button>
+        </div>
+      </div>
     </div>
 
     <div id="loading" class="msg"><div class="spinner"></div>Chargement des données…</div>
@@ -673,6 +690,47 @@ function num(s){
   return isNaN(n)?0:n;
 }
 
+async function loadPaddMissions(){
+  const personne=document.getElementById('padd-personne').value;
+  const mSel=document.getElementById('padd-mission');
+  if(!personne){mSel.innerHTML='';return;}
+  try{
+    const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'perf_missions',personne})});
+    const j=await r.json();
+    const list=(j.ok&&j.missions&&j.missions.length)?j.missions:allMissions?[...allMissions]:[];
+    mSel.innerHTML=list.map(m=>`<option>${m}</option>`).join('');
+  }catch(e){
+    mSel.innerHTML='';
+  }
+}
+async function submitPerfAdd(){
+  const v=id=>document.getElementById(id).value.trim();
+  const msg=document.getElementById('padd-msg');
+  const personne=v('padd-personne'), mission=v('padd-mission'), date=v('padd-date');
+  if(!personne){msg.textContent='⚠ Choisis une personne.';msg.style.color='var(--red)';return;}
+  if(!mission){msg.textContent='⚠ Choisis une mission.';msg.style.color='var(--red)';return;}
+  if(!date){msg.textContent='⚠ Choisis une date.';msg.style.color='var(--red)';return;}
+  const btn=document.querySelector('#padd-pop .btn-add');
+  const prevLabel=btn.textContent;
+  btn.disabled=true; btn.textContent='→ Enregistrement…';
+  const payload={action:'perf_add', personne, mission, date,
+    duree:v('padd-duree'), appels:v('padd-appels'), connectes:v('padd-connectes'),
+    rdv:v('padd-rdv'), noshow:v('padd-noshow'), reprog:v('padd-reprog')};
+  try{
+    const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.error||'réponse invalide');
+    msg.textContent='✓ Entrée enregistrée.';
+    msg.style.color='var(--green)';
+    await loadAll();
+    setTimeout(()=>{const p=document.getElementById('padd-pop'); if(p)p.classList.remove('open'); const m=document.getElementById('padd-msg'); if(m)m.textContent='';},1200);
+  }catch(e){
+    msg.textContent='✗ Erreur : '+e.message;
+    msg.style.color='var(--red)';
+  }
+  btn.disabled=false; btn.textContent=prevLabel;
+}
+
 async function loadAll(){
   const results=await Promise.allSettled(PEOPLE.map(p=>fetch(csvUrl(p)).then(r=>{if(!r.ok)throw 0;return r.text()})));
   rows=[];
@@ -728,6 +786,10 @@ function initFilters(){
   const now=new Date();
   document.getElementById('pdf-week').value=isoWeekStr(now);
   document.getElementById('pdf-month').value=iso(now).slice(0,7);
+  document.getElementById('padd-personne').innerHTML=PEOPLE.map(p=>`<option>${p}</option>`).join('');
+  if(document.getElementById('f-person').value) document.getElementById('padd-personne').value=document.getElementById('f-person').value;
+  document.getElementById('padd-date').value=iso(new Date());
+  loadPaddMissions();
 }
 function iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
