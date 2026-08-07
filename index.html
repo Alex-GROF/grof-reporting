@@ -202,6 +202,7 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
 <input type="password" id="li-password" placeholder="Mot de passe" autocomplete="current-password">
 <button class="btn-add" style="justify-self:stretch" onclick="doLogin()">→ Se connecter</button>
 <div class="auth-msg" id="li-msg"></div>
+<div style="text-align:center;margin-top:10px"><a href="#" style="font-size:12px;color:var(--grey)" onclick="forgotPassword();return false">Mot de passe oublié ?</a></div>
 </div>
 <div id="form-signup" class="auth-form">
 <input type="text" id="su-nom" placeholder="Nom">
@@ -241,6 +242,9 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
         <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
         <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
         <button data-view="probs" onclick="switchView('probs')">→ Ticket</button>
+        <button data-view="playbook" onclick="switchView('playbook')">→ Playbook</button>
+        <button data-view="facture" onclick="switchView('facture')">→ Facture</button>
+        <button data-view="responsable" onclick="switchView('responsable')">→ Espace Responsable</button>
       </div>
     </div>
   </div>
@@ -528,10 +532,11 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
     <div class="pform">
       <input type="hidden" id="re-pageid">
       <input type="text" id="re-nom" placeholder="Nom du RDV / prospect *">
-      <select id="re-statut">
+      <select id="re-statut" onchange="toggleReRaison()">
         <option>RDV Programmé</option><option>RDV validé</option><option>RDV invalidé</option>
         <option>RDV à reprogrammer</option><option>RDV archivé</option>
       </select>
+      <textarea id="re-raison" placeholder="Raison de l'invalidation (obligatoire)" style="display:none;grid-column:1/-1;min-height:70px"></textarea>
       <input type="text" id="re-org" placeholder="Organisation">
       <input type="text" id="re-secteur" placeholder="Secteur d'activité">
       <input type="text" id="re-contact" placeholder="Contact">
@@ -572,6 +577,50 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
 <tbody></tbody>
 </table></div>
 </div>
+
+<div class="panel full">
+<h3>→ Tickets en attente</h3>
+<div id="adm-tickets-list"><div class="msg">Chargement…</div></div>
+</div>
+<div class="panel full">
+<h3>→ Reporting non fait aujourd'hui</h3>
+<div id="adm-reporting-list"><div class="msg">Chargement…</div></div>
+</div>
+</section>
+<section id="view-responsable" style="display:none">
+<div class="panel full">
+<h3>→ Tickets en attente</h3>
+<div id="resp-tickets-list"><div class="msg">Chargement…</div></div>
+</div>
+<div class="panel full">
+<h3>→ Reporting non fait aujourd'hui</h3>
+<div id="resp-reporting-list"><div class="msg">Chargement…</div></div>
+</div>
+</section>
+<section id="view-playbook" style="display:none">
+<div class="panel full">
+<h3>→ Playbook par mission</h3>
+<div class="note" style="margin-bottom:14px">ICP et liste de contacts à jour pour chaque mission.</div>
+<div id="playbook-grid" class="grid"><div class="msg">Chargement…</div></div>
+</div>
+</section>
+<section id="view-facture" style="display:none">
+<div class="panel full">
+<h3>→ Ajouter / modifier une ligne</h3>
+<div class="pform">
+<input type="text" id="fa-mission" placeholder="Mission (ex : GROF, DCUBE…)">
+<input type="month" id="fa-mois">
+<input type="number" id="fa-montant-facture" placeholder="Montant facturé (€)">
+<input type="number" id="fa-montant-paye" placeholder="Montant payé (€)">
+<div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">Échéance</label><input type="date" id="fa-echeance" style="width:100%"></div>
+<div><label style="display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">Date de paiement</label><input type="date" id="fa-paiement" style="width:100%"></div>
+<select id="fa-statut"><option>Impayé</option><option>Partiel</option><option>Payé</option></select>
+<input type="text" id="fa-notes" placeholder="Notes (optionnel)">
+<input type="hidden" id="fa-row">
+<button class="btn-add" onclick="saveFacture()">→ Enregistrer</button>
+</div>
+</div>
+<div id="facture-tables"><div class="msg">Chargement…</div></div>
 </section>
 </main>
 
@@ -618,11 +667,169 @@ async function apiPost(action,payload){
   const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(body)});
   return r.json();
 }
+
+// --- Playbook ---
+async function loadPlaybook(){
+  const box = document.getElementById('playbook-grid');
+  box.innerHTML = '<div class="msg">Chargement…</div>';
+  const res = await apiPost('playbook_list',{});
+  if(!res.ok){ box.innerHTML='<div class="msg" style="color:var(--red)">'+esc(res.error||'Erreur')+'</div>'; return; }
+  const canEdit = res.canEdit;
+  box.innerHTML = res.items.map(function(it){
+    return '<div class="panel"><h3>→ '+esc(it.mission)+'</h3>'+playbookZone('icp','ICP',it,canEdit)+playbookZone('contacts','Liste de contacts',it,canEdit)+'</div>';
+  }).join('') || '<div class="msg">Aucune mission.</div>';
+}
+function playbookZone(type,label,it,canEdit){
+  const url = type==='icp'?it.icpUrl:it.contactsUrl;
+  const nom = type==='icp'?it.icpNom:it.contactsNom;
+  let h = '<div style="margin-bottom:14px;padding-top:10px;border-top:1px solid var(--border)">'
+    +'<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--grey);margin-bottom:6px">'+label+'</div>';
+  if(url){ h += '<a href="'+esc(url)+'" target="_blank" style="font-weight:700;color:var(--red)">'+esc(nom||'Télécharger')+'</a>'; }
+  else { h += '<span style="color:var(--grey);font-size:13px">Aucun fichier.</span>'; }
+  if(canEdit){ h += '<div style="margin-top:8px"><input type="file" id="pb-'+type+'-'+esc(it.mission)+'" onchange="uploadPlaybookFile(\''+esc(it.mission)+'\',\''+type+'\')" style="font-size:12px"></div>'; }
+  return h+'</div>';
+}
+async function uploadPlaybookFile(mission,type){
+  const input = document.getElementById('pb-'+type+'-'+mission);
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 15*1024*1024){ alert('Fichier trop volumineux (15 Mo max).'); return; }
+  const reader = new FileReader();
+  reader.onload = async function(){
+    const res = await apiPost('playbook_upload',{mission:mission,type:type,data:reader.result,filename:file.name,mimeType:file.type});
+    if(!res.ok){ alert('Erreur : '+(res.error||'')); return; }
+    loadPlaybook();
+  };
+  reader.readAsDataURL(file);
+}
+// --- Facture ---
+async function loadFacture(){
+  const box = document.getElementById('facture-tables');
+  box.innerHTML = '<div class="msg">Chargement…</div>';
+  const res = await apiPost('facture_list',{});
+  if(!res.ok){ box.innerHTML='<div class="msg" style="color:var(--red)">'+esc(res.error||'Erreur')+'</div>'; return; }
+  const byM = {};
+  res.items.forEach(function(it){ (byM[it.mission]=byM[it.mission]||[]).push(it); });
+  const missions = Object.keys(byM).sort();
+  window.__factureItems = res.items;
+  if(!missions.length){ box.innerHTML='<div class="msg">Aucune facture enregistrée.</div>'; return; }
+  box.innerHTML = missions.map(function(m){
+    const rows = byM[m].slice().sort(function(a,b){ return a.mois<b.mois?1:-1; }).map(function(it){
+      const statutColor = it.statut==='Payé'?'var(--green)':(it.statut==='Partiel'?'#F39C12':'var(--red)');
+      let retard = '';
+      if(it.statut!=='Payé' && it.dateEcheance){
+        const diff = Math.floor((Date.now()-new Date(it.dateEcheance).getTime())/86400000);
+        if(diff>0) retard = diff+' j';
+      }
+      return '<tr><td>'+esc(it.mois)+'</td><td class="num">'+esc(it.montantFacture)+' €</td><td class="num">'+esc(it.montantPaye)+' €</td>'
+        +'<td>'+esc(it.dateEcheance||'–')+'</td><td>'+esc(it.datePaiement||'–')+'</td>'
+        +'<td class="rate-badge" style="color:'+statutColor+'">'+esc(it.statut)+'</td>'
+        +'<td>'+esc(retard||'–')+'</td>'
+        +'<td><button class="del" style="position:static" onclick="editFacture(\''+it.row+'\')">✎</button> <button class="del" style="position:static" onclick="deleteFacture('+it.row+')">✕</button></td></tr>';
+    }).join('');
+    return '<div class="panel full"><h3>→ '+esc(m)+'</h3><div style="overflow-x:auto"><table>'
+      +'<thead><tr><th>Mois</th><th class="num">Facturé</th><th class="num">Payé</th><th>Échéance</th><th>Payé le</th><th>Statut</th><th>Retard</th><th></th></tr></thead>'
+      +'<tbody>'+rows+'</tbody></table></div></div>';
+  }).join('');
+}
+function editFacture(row){
+  const it = (window.__factureItems||[]).find(function(x){ return String(x.row)===String(row); });
+  if(!it) return;
+  document.getElementById('fa-row').value = it.row;
+  document.getElementById('fa-mission').value = it.mission;
+  document.getElementById('fa-mois').value = it.mois;
+  document.getElementById('fa-montant-facture').value = it.montantFacture;
+  document.getElementById('fa-montant-paye').value = it.montantPaye;
+  document.getElementById('fa-echeance').value = it.dateEcheance;
+  document.getElementById('fa-paiement').value = it.datePaiement;
+  document.getElementById('fa-statut').value = it.statut;
+  document.getElementById('fa-notes').value = it.notes;
+  window.scrollTo(0,0);
+}
+async function saveFacture(){
+  const v = function(id){ return document.getElementById(id).value.trim(); };
+  if(!v('fa-mission')||!v('fa-mois')){ alert('Mission et mois requis.'); return; }
+  const payload = { row:v('fa-row')||undefined, mission:v('fa-mission'), mois:v('fa-mois'),
+    montantFacture:v('fa-montant-facture'), montantPaye:v('fa-montant-paye'),
+    dateEcheance:v('fa-echeance'), datePaiement:v('fa-paiement'), statut:v('fa-statut'), notes:v('fa-notes') };
+  const res = await apiPost('facture_upsert', payload);
+  if(!res.ok){ alert('Erreur : '+(res.error||'')); return; }
+  ['fa-row','fa-mission','fa-mois','fa-montant-facture','fa-montant-paye','fa-echeance','fa-paiement','fa-notes'].forEach(function(id){ document.getElementById(id).value=''; });
+  document.getElementById('fa-statut').value='Impayé';
+  loadFacture();
+}
+async function deleteFacture(row){
+  if(!confirm('Supprimer cette ligne ?')) return;
+  const res = await apiPost('facture_delete', {row:row});
+  if(!res.ok){ alert('Erreur : '+(res.error||'')); return; }
+  loadFacture();
+}
+// --- Tickets & reporting (Administrateur / Espace Responsable) ---
+const TICKET_TYPE_LABELS = {rdv_invalidation:'Invalidation RDV', password_reset:'Mot de passe oublié'};
+async function loadTicketsInto(prefix){
+  const box = document.getElementById(prefix+'-tickets-list');
+  if(!box) return;
+  box.innerHTML = '<div class="msg">Chargement…</div>';
+  const res = await apiPost('ticket_list',{});
+  if(!res.ok){ box.innerHTML='<div class="msg" style="color:var(--red)">'+esc(res.error||'Erreur')+'</div>'; return; }
+  if(!res.items.length){ box.innerHTML='<div class="msg">Aucun ticket en attente.</div>'; return; }
+  box.innerHTML = res.items.map(function(t){
+    let extra = '';
+    if(t.type==='rdv_invalidation'){
+      extra = '<div class="block"><b>→ Mission</b><p>'+esc(t.mission)+'</p></div><div class="block"><b>→ Raison</b><p>'+esc(t.raison)+'</p></div>';
+    } else {
+      extra = '<div class="block"><b>→ Compte</b><p>'+esc(t.email)+'</p></div><input type="password" id="pw-'+esc(t.id)+'" placeholder="Nouveau mot de passe (6+ caractères)" style="margin-top:8px;width:100%">';
+    }
+    return '<div class="prob"><div class="prob-actions"><button class="del" onclick="rejectTicket(\''+esc(t.id)+'\',\''+prefix+'\')">✕ Refuser</button><button class="done-btn" onclick="acceptTicket(\''+esc(t.id)+'\',\''+prefix+'\')">✓ Accepter</button></div>'
+      +'<div class="meta"><span class="tag">'+esc(TICKET_TYPE_LABELS[t.type]||t.type)+'</span><span class="tag">'+esc(t.requestedBy)+'</span><span class="tag">'+esc(t.requestedAt)+'</span></div>'
+      +extra+'</div>';
+  }).join('');
+}
+async function acceptTicket(id,prefix){
+  const payload = {id:id};
+  const pwField = document.getElementById('pw-'+id);
+  if(pwField){
+    const pw = pwField.value.trim();
+    if(!pw || pw.length<6){ alert('Indique un nouveau mot de passe (6 caractères minimum).'); return; }
+    payload.newPassword = pw;
+  }
+  const res = await apiPost('ticket_accept', payload);
+  if(!res.ok){ alert('Erreur : '+(res.error||'')); return; }
+  loadTicketsInto(prefix);
+}
+async function rejectTicket(id,prefix){
+  const res = await apiPost('ticket_reject', {id:id});
+  if(!res.ok){ alert('Erreur : '+(res.error||'')); return; }
+  loadTicketsInto(prefix);
+}
+async function loadReportingInto(prefix){
+  const box = document.getElementById(prefix+'-reporting-list');
+  if(!box) return;
+  box.innerHTML = '<div class="msg">Chargement…</div>';
+  const res = await apiPost('reporting_status',{});
+  if(!res.ok){ box.innerHTML='<div class="msg" style="color:var(--red)">'+esc(res.error||'Erreur')+'</div>'; return; }
+  if(!res.missing.length){ box.innerHTML='<div class="msg">Tout le monde a reporté aujourd\'hui ('+esc(res.date)+').</div>'; return; }
+  box.innerHTML = '<div class="note" style="margin-bottom:10px">Au '+esc(res.date)+' :</div>'
+    + res.missing.map(function(p){ return '<span style="display:inline-block;margin:0 8px 8px 0;padding:6px 12px;border:1px solid var(--red);color:var(--red);border-radius:8px;font-size:12px;font-weight:700">'+esc(p)+'</span>'; }).join('');
+}
+
 function switchAuthTab(t){
   document.getElementById('tab-login').classList.toggle('active',t==='login');
   document.getElementById('tab-signup').classList.toggle('active',t==='signup');
   document.getElementById('form-login').classList.toggle('active',t==='login');
   document.getElementById('form-signup').classList.toggle('active',t==='signup');
+}
+async function forgotPassword(){
+  const email=(document.getElementById('li-email').value||'').trim();
+  const msg=document.getElementById('li-msg');
+  if(!email){ msg.textContent='Indique ton email ci-dessus puis clique sur "Mot de passe oublié ?".'; msg.style.color='var(--red)'; return; }
+  msg.textContent='Envoi de la demande…'; msg.style.color='';
+  try{
+    await apiPost('forgot_password',{email:email});
+    msg.textContent='Si ce compte existe, une demande a été envoyée à un administrateur.'; msg.style.color='var(--green)';
+  }catch(e){
+    msg.textContent='Erreur, réessaie plus tard.'; msg.style.color='var(--red)';
+  }
 }
 async function doLogin(){
   const email=document.getElementById('li-email').value.trim();
@@ -739,11 +946,11 @@ async function saveProfile(){
   msg.textContent='✓ Profil mis à jour.';msg.style.color='var(--green)';
   setTimeout(closeProfileModal,900);
 }
-const NAV_BY_ROLE={
-  Fondateur:['home','pilot','rent','perf','skip','rdv','probs','admin'],
-  Responsable:['home','pilot','rent','perf','skip','rdv','probs'],
+const NAV_BY_ROLE = {
+  Fondateur:['home','pilot','rent','perf','skip','rdv','probs','admin','playbook','facture'],
+  Responsable:['home','pilot','rent','perf','skip','rdv','probs','playbook','facture','responsable'],
   SDR:['home','perf','skip','rdv'],
-  Client:['rdv']
+  Client:['perf','playbook','rdv']
 };
 function applyRoleGating(){
   const role=SESSION.role;
@@ -782,10 +989,17 @@ async function enterApp(){
   await loadAll();
   loadJours();
   const firstView=(NAV_BY_ROLE[SESSION.role]&&NAV_BY_ROLE[SESSION.role][0])||'home';
-  switchView(SESSION.role==='Client'?'rdv':firstView);
+  switchView(firstView);
 }
 
 let clientEditPageId=null, clientEditMission=null;
+function toggleReRaison(){
+  const box=document.getElementById('re-raison');
+  if(!box) return;
+  const st=document.getElementById('re-statut');
+  const show = SESSION && SESSION.role==='Client' && st && st.value==='RDV invalidé';
+  box.style.display = show?'':'none';
+}
 function openStatusOnlyRdv(r){
   clientEditPageId=r.id||'';
   clientEditMission=currentMissionTab;
@@ -793,8 +1007,9 @@ function openStatusOnlyRdv(r){
   const allowed=['RDV validé','RDV invalidé','RDV à reprogrammer'];
   document.getElementById('re-statut').value=allowed.indexOf(r.statut)!==-1?r.statut:allowed[0];
   document.getElementById('re-msg').textContent='';
+  toggleReRaison();
   document.querySelectorAll('#rdv-edit-modal .pform > *').forEach(function(el){
-    const keep=el.id==='re-statut'||el.id==='re-pageid'||el.id==='re-msg'||el.tagName==='BUTTON';
+    const keep=el.id==='re-statut'||el.id==='re-pageid'||el.id==='re-msg'||el.tagName==='BUTTON'||el.id==='re-raison';
     el.style.display=keep?'':'none';
   });
   const h3=document.querySelector('#rdv-edit-modal h3');
@@ -805,6 +1020,23 @@ async function submitStatusOnlyRdv(){
   const pageId=document.getElementById('re-pageid').value.trim();
   const statut=document.getElementById('re-statut').value;
   const msg=document.getElementById('re-msg');
+  if(SESSION && SESSION.role==='Client' && statut==='RDV invalidé'){
+    const raison=document.getElementById('re-raison').value.trim();
+    if(!raison){ msg.textContent='Merci d\'indiquer une raison.'; msg.style.color='var(--red)'; return; }
+    msg.textContent='Envoi de la demande…'; msg.style.color='';
+    const tres=await apiPost('ticket_rdv_invalidation',{pageId:pageId,mission:clientEditMission,raison:raison});
+    if(tres.ok){
+      msg.textContent='✓ Demande envoyée, en attente de validation.'; msg.style.color='var(--green)';
+      setTimeout(function(){
+        closeEditModal();
+        document.querySelectorAll('#rdv-edit-modal .pform > *').forEach(function(el){ el.style.display=''; });
+        if(currentMissionTab) loadMissionDetails(currentMissionTab);
+      },1200);
+    } else {
+      msg.textContent='✗ '+(tres.error||'Erreur'); msg.style.color='var(--red)';
+    }
+    return;
+  }
   msg.textContent='Enregistrement…';msg.style.color='';
   const res=await apiPost('notion_rdv_set_status',{pageId:pageId,mission:clientEditMission,statut:statut});
   if(res.ok){
@@ -818,6 +1050,33 @@ async function submitStatusOnlyRdv(){
     msg.textContent='✗ '+(res.error||'Erreur');msg.style.color='var(--red)';
   }
 }
+const ADMIN_MISSIONS = ['GROF','DCUBE','HARVEN','SPECTRUM','ZBO','MOGADOR','KOM','WEECHOOZ'];
+function adminScopeCell(u,i){
+  if(u.role!=='Client'){
+    return '<td><input type="text" id="adm-scope-'+i+'" value="'+esc(u.scope||'')+'" placeholder="ex : HARVEN ou Matteo" style="width:150px"></td>';
+  }
+  const selected=(u.scope||'').split(',').map(function(x){return x.trim().toUpperCase();}).filter(Boolean);
+  const all=Array.from(new Set(ADMIN_MISSIONS.concat(selected)));
+  const badges=all.map(function(m){
+    const on=selected.indexOf(m)!==-1;
+    return '<span data-m="'+esc(m)+'" onclick="toggleMissionBadge('+i+',\''+esc(m)+'\')" style="display:inline-block;margin:2px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid '+(on?'var(--red)':'var(--border)')+';background:'+(on?'var(--red)':'transparent')+';color:'+(on?'#fff':'var(--grey)')+'">'+esc(m)+'</span>';
+  }).join('');
+  return '<td style="max-width:220px"><input type="hidden" id="adm-scope-'+i+'" value="'+esc(selected.join(','))+'"><div id="adm-scope-badges-'+i+'">'+badges+'</div></td>';
+}
+function toggleMissionBadge(i,mission){
+  const input=document.getElementById('adm-scope-'+i);
+  let selected=(input.value||'').split(',').map(function(x){return x.trim().toUpperCase();}).filter(Boolean);
+  const idx=selected.indexOf(mission);
+  if(idx===-1) selected.push(mission); else selected.splice(idx,1);
+  input.value=selected.join(',');
+  const box=document.getElementById('adm-scope-badges-'+i);
+  Array.from(box.children).forEach(function(el){
+    const on=selected.indexOf(el.dataset.m)!==-1;
+    el.style.border='1px solid '+(on?'var(--red)':'var(--border)');
+    el.style.background=on?'var(--red)':'transparent';
+    el.style.color=on?'#fff':'var(--grey)';
+  });
+}
 async function loadAdmin(){
   const tbody=document.querySelector('#t-admin tbody');
   tbody.innerHTML='<tr><td colspan="6" style="color:var(--grey)">Chargement…</td></tr>';
@@ -829,7 +1088,7 @@ async function loadAdmin(){
       +'<td>'+esc(u.nom||'')+'</td>'
       +'<td>'+esc(u.email||'')+'</td>'
       +'<td><select id="adm-role-'+i+'">'+roleOpts.map(function(r){return '<option value="'+r+'"'+(r===u.role?' selected':'')+'>'+(r||'— aucun —')+'</option>';}).join('')+'</select></td>'
-      +'<td><input type="text" id="adm-scope-'+i+'" value="'+esc(u.scope||'')+'" placeholder="ex : HARVEN ou Matteo" style="width:150px"></td>'
+      +adminScopeCell(u,i)
       +'<td><select id="adm-status-'+i+'"><option value="active"'+(u.status==='active'?' selected':'')+'>active</option><option value="pending"'+(u.status==='pending'?' selected':'')+'>pending</option><option value="disabled"'+(u.status==='disabled'?' selected':'')+'>disabled</option></select></td>'
       +'<td><button class="btn-add" style="padding:6px 14px" onclick="saveAdminUser(\''+u.email.replace(/'/g,"\\'")+'\','+i+')">→ Enregistrer</button></td>'
       +'</tr>';
@@ -1976,18 +2235,21 @@ function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const ddBtn=document.getElementById('view-dd-btn');
   if(ddBtn){
-    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket',home:'Accueil',admin:'Admin'};
+    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket',home:'Accueil',admin:'Admin',playbook:'Playbook',facture:'Facture',responsable:'Espace Responsable'};
     ddBtn.textContent='→ '+(ddLabels[v]||v);
   }
   const ddPop=document.getElementById('view-dd-pop'); if(ddPop) ddPop.classList.remove('open');
-  ['perf','skip','pilot','probs','rdv','rent','home','admin'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
+  ['perf','skip','pilot','probs','rdv','rent','home','admin','playbook','facture','responsable'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
   if(v==='rdv'&&!rdvRendered) renderRdv();
   if(v==='skip'&&scSequences===null) initSkip();
   if(v==='pilot'&&!pilotInit) initPilot();
   if(v==='rent'&&!rentInit) loadRentabilite();
   if(v==='home'&&!homeInit) loadHome();
-  if(v==='admin') loadAdmin();
+  if(v==='admin'){ loadAdmin(); loadTicketsInto('adm'); loadReportingInto('adm'); }
+  if(v==='playbook') loadPlaybook();
+  if(v==='facture') loadFacture();
+  if(v==='responsable'){ loadTicketsInto('resp'); loadReportingInto('resp'); }
 }
 
 function loadHome(){
