@@ -230,7 +230,6 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
         <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
         <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
         <button data-view="probs" onclick="switchView('probs')">→ Ticket</button>
-<button data-view="admin" onclick="switchView('admin')">→ Admin</button>
       </div>
     </div>
   </div>
@@ -238,6 +237,8 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
 <div class="user-badge" id="user-badge" style="display:none"></div>
   <button id="view-toggle" class="theme-toggle" onclick="toggleViewMode()" title="Vue PC / Mobile"><svg id="view-icon-pc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><svg id="view-icon-mobile" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg></button>
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Mode sombre / clair"><svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg><svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
+  <button id="profile-toggle" class="theme-toggle" onclick="openProfile()" title="Mon profil"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></button>
+  <button id="admin-toggle" class="theme-toggle" onclick="switchView('admin')" title="Administrateur" style="display:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></button>
   </div>
 </header>
 
@@ -552,6 +553,32 @@ body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-ren
 </section>
 </main>
 
+<div id="profile-modal" style="display:none;position:fixed;inset:0;background:rgba(10,10,10,.6);z-index:1500;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--card);border-radius:16px;padding:24px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto">
+    <h3 style="margin-bottom:16px">→ Mon profil</h3>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <img id="pf-photo-preview" src="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;background:var(--border);display:none">
+      <div id="pf-photo-placeholder" style="width:72px;height:72px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:var(--grey)"></div>
+      <div>
+        <input type="file" id="pf-photo-input" accept="image/*" onchange="onProfilePhotoChange(event)" style="display:none">
+        <button onclick="document.getElementById('pf-photo-input').click()" style="background:none;border:1px solid var(--black);border-radius:10px;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer">Changer la photo</button>
+      </div>
+    </div>
+    <div class="pform">
+      <input type="text" id="pf-prenom" placeholder="Prénom">
+      <input type="text" id="pf-nom" placeholder="Nom">
+      <input type="email" id="pf-email" placeholder="Email">
+      <input type="text" id="pf-poste" placeholder="Poste">
+      <textarea id="pf-description" placeholder="Description"></textarea>
+      <div style="display:flex;gap:10px;margin-top:6px;grid-column:1/-1">
+        <button class="btn-add" onclick="saveProfile()" style="flex:1">→ Enregistrer</button>
+        <button onclick="closeProfileModal()" style="flex:1;background:var(--card);border:1px solid var(--black);border-radius:12px;font-weight:700;cursor:pointer">Annuler</button>
+      </div>
+      <div class="note" id="pf-msg"></div>
+    </div>
+  </div>
+</div>
+
 <footer>© <span id="year"></span> GROF — Reporting SDR · Données : <a href="https://docs.google.com/spreadsheets/d/1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE/edit" target="_blank">Google Sheet ↗</a><div style="margin-top:12px"><a href="tuto.html" target="_blank" style="display:inline-block;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:11px;font-weight:700;color:var(--grey);text-decoration:none;letter-spacing:.3px">▶ Tuto</a></div></footer>
 <div style="position:fixed;right:14px;bottom:10px;font-size:10.5px;color:var(--grey);z-index:5;pointer-events:none">Créé par Alexis Dubos</div>
 
@@ -626,7 +653,68 @@ function hideAuthGate(){document.getElementById('auth-gate').style.display='none
 function renderUserBadge(){
   const el=document.getElementById('user-badge');
   el.style.display='flex';
-  el.innerHTML='<span>'+esc(SESSION.nom||SESSION.email)+' · <span class="u-role">'+esc(SESSION.role)+'</span></span><button onclick="doLogout()">Déconnexion</button>';
+  const dispName=(SESSION.prenom||SESSION.nom)?((SESSION.prenom||'')+' '+(SESSION.nom||'')).trim():SESSION.email;
+  const avatar=SESSION.photo?'<img src="'+SESSION.photo+'" style="width:22px;height:22px;border-radius:50%;object-fit:cover">':'';
+  el.innerHTML=avatar+'<span>'+esc(dispName)+' · <span class="u-role">'+esc(SESSION.role)+'</span></span><button onclick="doLogout()">Déconnexion</button>';
+}
+function openProfile(){
+  document.getElementById('pf-prenom').value=SESSION.prenom||'';
+  document.getElementById('pf-nom').value=SESSION.nom||'';
+  document.getElementById('pf-email').value=SESSION.email||'';
+  document.getElementById('pf-poste').value=SESSION.poste||'';
+  document.getElementById('pf-description').value=SESSION.description||'';
+  const preview=document.getElementById('pf-photo-preview');
+  const placeholder=document.getElementById('pf-photo-placeholder');
+  if(SESSION.photo){preview.src=SESSION.photo;preview.style.display='';placeholder.style.display='none';}
+  else{preview.style.display='none';placeholder.style.display='flex';placeholder.textContent=(SESSION.prenom||SESSION.email||'?').charAt(0).toUpperCase();}
+  window.__pfPhotoData=SESSION.photo||'';
+  document.getElementById('pf-msg').textContent='';
+  document.getElementById('profile-modal').style.display='flex';
+}
+function closeProfileModal(){
+  document.getElementById('profile-modal').style.display='none';
+}
+function onProfilePhotoChange(ev){
+  const file=ev.target.files&&ev.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    const img=new Image();
+    img.onload=function(){
+      const maxDim=200;
+      let w=img.width,h=img.height;
+      if(w>h){ if(w>maxDim){h=Math.round(h*maxDim/w);w=maxDim;} } else { if(h>maxDim){w=Math.round(w*maxDim/h);h=maxDim;} }
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.7);
+      window.__pfPhotoData=dataUrl;
+      const preview=document.getElementById('pf-photo-preview');
+      const placeholder=document.getElementById('pf-photo-placeholder');
+      preview.src=dataUrl;preview.style.display='';placeholder.style.display='none';
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+async function saveProfile(){
+  const msg=document.getElementById('pf-msg');
+  msg.textContent='Enregistrement…';msg.style.color='';
+  const payload={
+    prenom:document.getElementById('pf-prenom').value.trim(),
+    nom:document.getElementById('pf-nom').value.trim(),
+    email:document.getElementById('pf-email').value.trim(),
+    poste:document.getElementById('pf-poste').value.trim(),
+    description:document.getElementById('pf-description').value.trim(),
+    photo:window.__pfPhotoData||''
+  };
+  const res=await apiPost('profile_update',payload);
+  if(!res.ok){msg.textContent='✗ '+(res.error||'Erreur');msg.style.color='var(--red)';return;}
+  SESSION.prenom=payload.prenom;SESSION.nom=payload.nom;SESSION.email=payload.email;
+  SESSION.poste=payload.poste;SESSION.description=payload.description;SESSION.photo=payload.photo;
+  renderUserBadge();
+  msg.textContent='✓ Profil mis à jour.';msg.style.color='var(--green)';
+  setTimeout(closeProfileModal,900);
 }
 const NAV_BY_ROLE={
   Fondateur:['home','pilot','rent','perf','skip','rdv','probs','admin'],
@@ -643,6 +731,8 @@ function applyRoleGating(){
     b.classList.toggle('hidden-role', visible.indexOf(b.dataset.view)===-1);
   });
   document.getElementById('home-toggle').classList.toggle('hidden-role', visible.indexOf('home')===-1);
+  var adminBtn=document.getElementById('admin-toggle');
+  if(adminBtn) adminBtn.style.display=(role==='Fondateur')?'':'none';
   renderUserBadge();
 }
 async function bootAuth(){
@@ -651,7 +741,7 @@ async function bootAuth(){
   const res=await apiPost('me',{});
   if(!res.ok){setToken('');showAuthGate();return;}
   if(res.pending){SESSION={email:res.email,nom:res.nom,role:'',scope:'',token:t};showPendingGate();return;}
-  SESSION={email:res.email,nom:res.nom,role:res.role,scope:res.scope,token:t};
+  SESSION={email:res.email,nom:res.nom,role:res.role,scope:res.scope,token:t,prenom:res.prenom||'',poste:res.poste||'',description:res.description||'',photo:res.photo||''};
   enterApp();
 }
 async function enterApp(){
