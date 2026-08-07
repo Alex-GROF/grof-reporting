@@ -149,10 +149,65 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 .rdv-card-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--black);font-weight:600;margin-bottom:6px}
 .rdv-card-meta span{display:inline-flex;align-items:center;gap:4px}
 .rdv-card-fields{display:grid;gap:5px;font-size:12.5px;color:var(--black);margin-top:2px}
+
+.hidden-role{display:none!important}
+#auth-gate{position:fixed;inset:0;background:var(--bg);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px}
+#auth-gate .auth-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:380px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+#auth-gate h2{font-size:18px;font-weight:900;margin-bottom:6px}
+#auth-gate p.sub{color:var(--grey);font-size:13px;margin-bottom:20px;line-height:1.5}
+#auth-gate .auth-tabs{display:flex;gap:8px;margin-bottom:20px}
+#auth-gate .auth-tabs button{flex:1;background:none;border:1px solid var(--black);color:var(--black);padding:8px;border-radius:10px;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer}
+#auth-gate .auth-tabs button.active{background:var(--red);border-color:var(--red);color:#fff}
+#auth-gate .auth-form{display:none;flex-direction:column;gap:12px}
+#auth-gate .auth-form.active{display:flex}
+#auth-gate input{width:100%}
+#auth-gate .auth-msg{font-size:12px;min-height:16px}
+#auth-gate .auth-pending{display:none;text-align:center}
+.user-badge{font-size:12px;font-weight:700;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.user-badge .u-role{color:var(--red)}
+.user-badge button{background:none;border:1px solid var(--black);color:var(--black);border-radius:10px;padding:6px 12px;font-family:inherit;font-weight:700;font-size:11px;cursor:pointer}
+body.role-client #view-rdv .panel:has(#r-mission){display:none}
+body.role-sdr #view-rdv .panel:has(#r-mission){display:none}
+body.role-sdr .rdv-detail-card button[onclick^="openEditRdv"]{display:none}
+body.role-client .panel:has(#home-kpi-perf),body.role-client .panel:has(#home-kpi-pilot),body.role-client .panel:has(#home-kpi-rent),body.role-client .panel:has(#home-kpi-skip),body.role-client .panel:has(#home-kpi-probs),body.role-client .panel:has(#home-essentiels){display:none}
+body.role-sdr .panel:has(#home-kpi-pilot),body.role-sdr .panel:has(#home-kpi-rent),body.role-sdr .panel:has(#home-kpi-probs),body.role-sdr .panel:has(#home-essentiels){display:none}
+#view-admin table select,#view-admin table input{min-width:auto;padding:6px 10px;font-size:13px}
 </style>
 </head>
 <body>
 
+
+<div id="auth-gate">
+<div class="auth-box">
+<div id="auth-forms">
+<h2>GROF — Reporting SDR</h2>
+<p class="sub">Connecte-toi pour accéder au dashboard.</p>
+<div class="auth-tabs">
+<button id="tab-login" class="active" onclick="switchAuthTab('login')">Connexion</button>
+<button id="tab-signup" onclick="switchAuthTab('signup')">Inscription</button>
+</div>
+<div id="form-login" class="auth-form active">
+<input type="text" id="li-email" placeholder="Email" autocomplete="username">
+<input type="password" id="li-password" placeholder="Mot de passe" autocomplete="current-password">
+<button class="btn-add" style="justify-self:stretch" onclick="doLogin()">→ Se connecter</button>
+<div class="auth-msg" id="li-msg"></div>
+</div>
+<div id="form-signup" class="auth-form">
+<input type="text" id="su-nom" placeholder="Nom">
+<input type="text" id="su-email" placeholder="Email" autocomplete="username">
+<input type="password" id="su-password" placeholder="Mot de passe (6 caractères min.)" autocomplete="new-password">
+<button class="btn-add" style="justify-self:stretch" onclick="doSignup()">→ Créer mon compte</button>
+<div class="auth-msg" id="su-msg"></div>
+</div>
+</div>
+<div id="auth-pending" class="auth-pending">
+<h2>Compte créé ✓</h2>
+<p class="sub">Ton compte est en attente de validation. Un administrateur doit t'attribuer un accès avant que tu puisses continuer.</p>
+<button class="btn-add" style="justify-self:stretch" onclick="pollPending()">→ Réessayer</button>
+<button class="range-btn" style="width:100%;margin-top:10px" onclick="doLogout()">Se déconnecter</button>
+</div>
+</div>
+</div>
 <header>
   <div class="brand">
     <svg role="img" aria-label="GROF" width="127" height="20" viewBox="0 0 127 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -175,10 +230,12 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
         <button data-view="skip" onclick="switchView('skip')">→ SkipCall</button>
         <button data-view="rdv" onclick="switchView('rdv')">→ Notion</button>
         <button data-view="probs" onclick="switchView('probs')">→ Ticket</button>
+<button data-view="admin" onclick="switchView('admin')">→ Admin</button>
       </div>
     </div>
   </div>
   <div class="updated" id="updated"></div>
+<div class="user-badge" id="user-badge" style="display:none"></div>
   <button id="view-toggle" class="theme-toggle" onclick="toggleViewMode()" title="Vue PC / Mobile"><svg id="view-icon-pc" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg><svg id="view-icon-mobile" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="7" y="2" width="10" height="20" rx="2"></rect><line x1="11" y1="18" x2="13" y2="18"></line></svg></button>
   <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Mode sombre / clair"><svg id="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg><svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></button>
   </div>
@@ -481,6 +538,18 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
   </div>
 </div>
 </section>
+
+<!-- VUE ADMIN -->
+<section id="view-admin" style="display:none">
+<div class="panel full">
+<h3>→ Comptes &amp; accès</h3>
+<div class="note" style="margin-bottom:14px">Attribue un rôle et un accès (scope) à chaque compte créé. Un compte sans rôle reste bloqué à l'écran de connexion. Pour un SDR, l'accès est un prénom parmi Matteo, Alix, Luca, Jennifer, Alexis, Idriss. Pour un Client, l'accès est une ou plusieurs missions séparées par une virgule (ex : HARVEN ou HARVEN,GROF).</div>
+<div style="overflow-x:auto"><table id="t-admin">
+<thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Accès (scope)</th><th>Statut</th><th></th></tr></thead>
+<tbody></tbody>
+</table></div>
+</div>
+</section>
 </main>
 
 <footer>© <span id="year"></span> GROF — Reporting SDR · Données : <a href="https://docs.google.com/spreadsheets/d/1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE/edit" target="_blank">Google Sheet ↗</a><div style="margin-top:12px"><a href="tuto.html" target="_blank" style="display:inline-block;border:1px solid var(--border);border-radius:20px;padding:6px 16px;font-size:11px;font-weight:700;color:var(--grey);text-decoration:none;letter-spacing:.3px">▶ Tuto</a></div></footer>
@@ -490,6 +559,181 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 const SHEET_ID = '1V5L7eIweFv-oFMEDqenv4XWYZCPQs3h0NUKPDFRxApE';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxKpABW40iDncw1litKxJrsxGkuOtMbqCyfOHzyASb6nG30g-mJoY0XMj5bC8BvIJeP/exec';
 const PEOPLE = ['Matteo','Alix','Luca','Jennifer','Alexis','Idriss'];
+
+let SESSION=null;
+let SCOPED_PEOPLE=PEOPLE.slice();
+function getToken(){try{return localStorage.getItem('grof-token')||'';}catch(e){return '';}}
+function setToken(t){try{if(t)localStorage.setItem('grof-token',t);else localStorage.removeItem('grof-token');}catch(e){}}
+async function apiPost(action,payload){
+  const body=Object.assign({action:action,token:getToken()},payload||{});
+  const r=await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(body)});
+  return r.json();
+}
+function switchAuthTab(t){
+  document.getElementById('tab-login').classList.toggle('active',t==='login');
+  document.getElementById('tab-signup').classList.toggle('active',t==='signup');
+  document.getElementById('form-login').classList.toggle('active',t==='login');
+  document.getElementById('form-signup').classList.toggle('active',t==='signup');
+}
+async function doLogin(){
+  const email=document.getElementById('li-email').value.trim();
+  const password=document.getElementById('li-password').value;
+  const msg=document.getElementById('li-msg');
+  if(!email||!password){msg.textContent='⚠ Renseigne email et mot de passe.';msg.style.color='var(--red)';return;}
+  msg.textContent='Connexion…';msg.style.color='';
+  const res=await apiPost('login',{email:email,password:password});
+  if(!res.ok){msg.textContent='✗ '+(res.error||'Erreur');msg.style.color='var(--red)';return;}
+  setToken(res.token);
+  SESSION={email:res.email||email,nom:res.nom,role:res.role,scope:res.scope,token:res.token};
+  if(res.pending){showPendingGate();return;}
+  enterApp();
+}
+async function doSignup(){
+  const nom=document.getElementById('su-nom').value.trim();
+  const email=document.getElementById('su-email').value.trim();
+  const password=document.getElementById('su-password').value;
+  const msg=document.getElementById('su-msg');
+  if(!nom||!email||!password){msg.textContent='⚠ Tous les champs sont obligatoires.';msg.style.color='var(--red)';return;}
+  msg.textContent='Création du compte…';msg.style.color='';
+  const res=await apiPost('signup',{nom:nom,email:email,password:password});
+  if(!res.ok){msg.textContent='✗ '+(res.error||'Erreur');msg.style.color='var(--red)';return;}
+  const lr=await apiPost('login',{email:email,password:password});
+  if(lr.ok){setToken(lr.token);SESSION={email:email,nom:nom,role:lr.role,scope:lr.scope,token:lr.token};}
+  showPendingGate();
+}
+async function pollPending(){
+  const res=await apiPost('me',{});
+  if(res.ok&&!res.pending){SESSION={email:res.email,nom:res.nom,role:res.role,scope:res.scope,token:getToken()};enterApp();}
+}
+async function doLogout(){
+  try{await apiPost('logout',{});}catch(e){}
+  setToken('');SESSION=null;
+  document.getElementById('user-badge').style.display='none';
+  showAuthGate();
+}
+function showAuthGate(){
+  document.getElementById('auth-gate').style.display='flex';
+  document.getElementById('auth-forms').style.display='';
+  document.getElementById('auth-pending').style.display='none';
+  switchAuthTab('login');
+}
+function showPendingGate(){
+  document.getElementById('auth-gate').style.display='flex';
+  document.getElementById('auth-forms').style.display='none';
+  document.getElementById('auth-pending').style.display='block';
+}
+function hideAuthGate(){document.getElementById('auth-gate').style.display='none';}
+function renderUserBadge(){
+  const el=document.getElementById('user-badge');
+  el.style.display='flex';
+  el.innerHTML='<span>'+esc(SESSION.nom||SESSION.email)+' · <span class="u-role">'+esc(SESSION.role)+'</span></span><button onclick="doLogout()">Déconnexion</button>';
+}
+const NAV_BY_ROLE={
+  Fondateur:['home','pilot','rent','perf','skip','rdv','probs','admin'],
+  Responsable:['home','pilot','rent','perf','skip','rdv','probs'],
+  SDR:['home','perf','skip','rdv'],
+  Client:['rdv']
+};
+function applyRoleGating(){
+  const role=SESSION.role;
+  document.body.className=document.body.className.replace(/\brole-\S+/g,'').trim();
+  document.body.classList.add('role-'+role.toLowerCase());
+  const visible=NAV_BY_ROLE[role]||[];
+  document.querySelectorAll('#view-dd-pop .nav button[data-view]').forEach(function(b){
+    b.classList.toggle('hidden-role', visible.indexOf(b.dataset.view)===-1);
+  });
+  document.getElementById('home-toggle').classList.toggle('hidden-role', visible.indexOf('home')===-1);
+  renderUserBadge();
+}
+async function bootAuth(){
+  const t=getToken();
+  if(!t){showAuthGate();return;}
+  const res=await apiPost('me',{});
+  if(!res.ok){setToken('');showAuthGate();return;}
+  if(res.pending){SESSION={email:res.email,nom:res.nom,role:'',scope:'',token:t};showPendingGate();return;}
+  SESSION={email:res.email,nom:res.nom,role:res.role,scope:res.scope,token:t};
+  enterApp();
+}
+async function enterApp(){
+  hideAuthGate();
+  applyRoleGating();
+  let allowedPeople=null, allowedMissions=null;
+  if(SESSION.role!=='Fondateur'){
+    try{
+      const pr=await apiPost('perf_read',{});
+      if(pr&&pr.ok){allowedPeople=(pr.people&&pr.people.length)?pr.people:[];allowedMissions=(pr.missions&&pr.missions.length)?pr.missions:null;}
+    }catch(e){}
+  }
+  SCOPED_PEOPLE=allowedPeople||PEOPLE.slice();
+  window.__ALLOWED_MISSIONS=allowedMissions;
+  await loadAll();
+  loadJours();
+  const firstView=(NAV_BY_ROLE[SESSION.role]&&NAV_BY_ROLE[SESSION.role][0])||'home';
+  switchView(SESSION.role==='Client'?'rdv':firstView);
+}
+
+let clientEditPageId=null, clientEditMission=null;
+function openStatusOnlyRdv(r){
+  clientEditPageId=r.id||'';
+  clientEditMission=currentMissionTab;
+  document.getElementById('re-pageid').value=r.id||'';
+  const allowed=['RDV validé','RDV invalidé','RDV à reprogrammer'];
+  document.getElementById('re-statut').value=allowed.indexOf(r.statut)!==-1?r.statut:allowed[0];
+  document.getElementById('re-msg').textContent='';
+  document.querySelectorAll('#rdv-edit-modal .pform > *').forEach(function(el){
+    const keep=el.id==='re-statut'||el.id==='re-pageid'||el.id==='re-msg'||el.tagName==='BUTTON';
+    el.style.display=keep?'':'none';
+  });
+  const h3=document.querySelector('#rdv-edit-modal h3');
+  if(h3) h3.textContent='→ Changer le statut : '+(r.nom||'ce RDV');
+  document.getElementById('rdv-edit-modal').style.display='flex';
+}
+async function submitStatusOnlyRdv(){
+  const pageId=document.getElementById('re-pageid').value.trim();
+  const statut=document.getElementById('re-statut').value;
+  const msg=document.getElementById('re-msg');
+  msg.textContent='Enregistrement…';msg.style.color='';
+  const res=await apiPost('notion_rdv_set_status',{pageId:pageId,mission:clientEditMission,statut:statut});
+  if(res.ok){
+    msg.textContent='✓ Statut mis à jour.';msg.style.color='var(--green)';
+    setTimeout(function(){
+      closeEditModal();
+      document.querySelectorAll('#rdv-edit-modal .pform > *').forEach(function(el){ el.style.display=''; });
+      if(currentMissionTab) loadMissionDetails(currentMissionTab);
+    },900);
+  } else {
+    msg.textContent='✗ '+(res.error||'Erreur');msg.style.color='var(--red)';
+  }
+}
+async function loadAdmin(){
+  const tbody=document.querySelector('#t-admin tbody');
+  tbody.innerHTML='<tr><td colspan="6" style="color:var(--grey)">Chargement…</td></tr>';
+  const res=await apiPost('admin_list_users',{});
+  if(!res.ok){tbody.innerHTML='<tr><td colspan="6" style="color:var(--red)">'+esc(res.error||'Erreur')+'</td></tr>';return;}
+  const roleOpts=['','Fondateur','Responsable','Client','SDR'];
+  tbody.innerHTML=res.users.map(function(u,i){
+    return '<tr>'
+      +'<td>'+esc(u.nom||'')+'</td>'
+      +'<td>'+esc(u.email||'')+'</td>'
+      +'<td><select id="adm-role-'+i+'">'+roleOpts.map(function(r){return '<option value="'+r+'"'+(r===u.role?' selected':'')+'>'+(r||'— aucun —')+'</option>';}).join('')+'</select></td>'
+      +'<td><input type="text" id="adm-scope-'+i+'" value="'+esc(u.scope||'')+'" placeholder="ex : HARVEN ou Matteo" style="width:150px"></td>'
+      +'<td><select id="adm-status-'+i+'"><option value="active"'+(u.status==='active'?' selected':'')+'>active</option><option value="pending"'+(u.status==='pending'?' selected':'')+'>pending</option><option value="disabled"'+(u.status==='disabled'?' selected':'')+'>disabled</option></select></td>'
+      +'<td><button class="btn-add" style="padding:6px 14px" onclick="saveAdminUser(\''+u.email.replace(/'/g,"\\'")+'\','+i+')">→ Enregistrer</button></td>'
+      +'</tr>';
+  }).join('') || '<tr><td colspan="6" style="color:var(--grey)">Aucun compte.</td></tr>';
+}
+async function saveAdminUser(email,i){
+  const role=document.getElementById('adm-role-'+i).value;
+  const scope=document.getElementById('adm-scope-'+i).value.trim();
+  const status=document.getElementById('adm-status-'+i).value;
+  if(role){
+    const r1=await apiPost('admin_set_role',{targetEmail:email,role:role,scope:scope});
+    if(!r1.ok){alert('Erreur rôle : '+(r1.error||''));return;}
+  }
+  const r2=await apiPost('admin_set_status',{targetEmail:email,status:status});
+  if(!r2.ok){alert('Erreur statut : '+(r2.error||''));return;}
+  loadAdmin();
+}
 const PROBLEM_SHEETS = ['Problèmes','Problemes','Problématiques','Problematiques'];
 const OBJECTIFS_RDV = {'WEECHOOZ':40,'DCUBE':10,'ZBO':10,'SPECTRUM':10,'HARVEN':10,'MOGADOR':10,'Be Signal':10,'KOM':10}; // objectifs mensuels
 const mKey=s=>(s||'').trim().toUpperCase();
@@ -713,7 +957,7 @@ async function submitPerfAdd(){
   const btn=document.querySelector('#padd-pop .btn-add');
   const prevLabel=btn.textContent;
   btn.disabled=true; btn.textContent='→ Enregistrement…';
-  const payload={action:'perf_add', personne, mission, date,
+  const payload={action:'perf_add', token:getToken(), personne, mission, date,
     duree:v('padd-duree'), appels:v('padd-appels'), connectes:v('padd-connectes'),
     rdv:v('padd-rdv'), noshow:v('padd-noshow'), reprog:v('padd-reprog')};
   try{
@@ -732,11 +976,11 @@ async function submitPerfAdd(){
 }
 
 async function loadAll(){
-  const results=await Promise.allSettled(PEOPLE.map(p=>fetch(csvUrl(p)).then(r=>{if(!r.ok)throw 0;return r.text()})));
+  const results=await Promise.allSettled(SCOPED_PEOPLE.map(p=>fetch(csvUrl(p)).then(r=>{if(!r.ok)throw 0;return r.text()})));
   rows=[];
   results.forEach((res,i)=>{
     if(res.status!=='fulfilled') return;
-    const person=PEOPLE[i];
+    const person=SCOPED_PEOPLE[i];
     let lastMission='';
     for(const r of parseCSV(res.value)){
       // missions du bloc mensuel (colonne J), même sans données quotidiennes
@@ -761,6 +1005,7 @@ async function loadAll(){
       }
     }
   });
+  if(window.__ALLOWED_MISSIONS){rows=rows.filter(r=>window.__ALLOWED_MISSIONS.indexOf(r.mission)!==-1);}
   rows.sort((a,b)=>a.date-b.date);
   initFilters();
   document.getElementById('loading').style.display='none';
@@ -771,7 +1016,7 @@ async function loadAll(){
 
 function initFilters(){
   const pSel=document.getElementById('f-person');
-  pSel.innerHTML='<option value="">Toute l\'équipe</option>'+PEOPLE.map(p=>`<option>${p}</option>`).join('');
+  pSel.innerHTML='<option value="">Toute l\'équipe</option>'+SCOPED_PEOPLE.map(p=>`<option>${p}</option>`).join('');
   const missions=[...new Set([...allMissions,...rows.map(r=>r.mission)])].sort();
   const mSel=document.getElementById('f-mission');
   mSel.innerHTML='<option value="">Toutes les missions</option>'+missions.map(m=>`<option>${m}</option>`).join('');
@@ -786,7 +1031,7 @@ function initFilters(){
   const now=new Date();
   document.getElementById('pdf-week').value=isoWeekStr(now);
   document.getElementById('pdf-month').value=iso(now).slice(0,7);
-  document.getElementById('padd-personne').innerHTML=PEOPLE.map(p=>`<option>${p}</option>`).join('');
+  document.getElementById('padd-personne').innerHTML=SCOPED_PEOPLE.map(p=>`<option>${p}</option>`).join('');
   if(document.getElementById('f-person').value) document.getElementById('padd-personne').value=document.getElementById('f-person').value;
   document.getElementById('padd-date').value=iso(new Date());
   loadPaddMissions();
@@ -1060,7 +1305,7 @@ function render(){
 
   // Par personne — toujours les 6 SDR (0 si pas de données)
   const pFilter=document.getElementById('f-person').value;
-  const pNames=pFilter?[pFilter]:PEOPLE.slice();
+  const pNames=pFilter?[pFilter]:SCOPED_PEOPLE.slice();
   const byP={};
   pNames.forEach(n=>byP[n]=[]);
   list.forEach(r=>{if(byP[r.person])byP[r.person].push(r);});
@@ -1294,6 +1539,7 @@ function toDateTimeLocal(iso){
 function openEditRdv(i){
   const r = lastMissionRows[i];
   if(!r) return;
+  if(SESSION && SESSION.role==='Client'){ openStatusOnlyRdv(r); return; }
   document.getElementById('re-pageid').value = r.id||'';
   document.getElementById('re-nom').value = r.nom||'';
   document.getElementById('re-statut').value = r.statut||'RDV Programmé';
@@ -1318,6 +1564,7 @@ function closeEditModal(){
 }
 
 async function submitRdvEdit(){
+  if(SESSION && SESSION.role==='Client'){ await submitStatusOnlyRdv(); return; }
   const v = id=>document.getElementById(id).value.trim();
   const msg = document.getElementById('re-msg');
   const pageId = v('re-pageid');
@@ -1608,26 +1855,28 @@ function switchView(v){
   document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
   const ddBtn=document.getElementById('view-dd-btn');
   if(ddBtn){
-    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket',home:'Accueil'};
+    const ddLabels={pilot:'Pilotage',rent:'Rentabilité',perf:'Performance',skip:'SkipCall',rdv:'Notion',probs:'Ticket',home:'Accueil',admin:'Admin'};
     ddBtn.textContent='→ '+(ddLabels[v]||v);
   }
   const ddPop=document.getElementById('view-dd-pop'); if(ddPop) ddPop.classList.remove('open');
-  ['perf','skip','pilot','probs','rdv','rent','home'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
+  ['perf','skip','pilot','probs','rdv','rent','home','admin'].forEach(x=>document.getElementById('view-'+x).style.display=x===v?'block':'none');
   if(v==='probs'&&problems===null) loadProblems();
   if(v==='rdv'&&!rdvRendered) renderRdv();
   if(v==='skip'&&scSequences===null) initSkip();
   if(v==='pilot'&&!pilotInit) initPilot();
   if(v==='rent'&&!rentInit) loadRentabilite();
   if(v==='home'&&!homeInit) loadHome();
+  if(v==='admin') loadAdmin();
 }
 
 function loadHome(){
   homeInit=true;
-  if(!pilotInit) initPilot();
-  if(!rentInit) loadRentabilite();
-  if(scSequences===null) initSkip();
-  if(problems===null) loadProblems();
-  if(!rdvRendered) renderRdv();
+  const homeAllowed=(SESSION&&NAV_BY_ROLE[SESSION.role])||['pilot','rent','perf','skip','rdv','probs'];
+  if(homeAllowed.indexOf('pilot')!==-1&&!pilotInit) initPilot();
+  if(homeAllowed.indexOf('rent')!==-1&&!rentInit) loadRentabilite();
+  if(homeAllowed.indexOf('skip')!==-1&&scSequences===null) initSkip();
+  if(homeAllowed.indexOf('probs')!==-1&&problems===null) loadProblems();
+  if(homeAllowed.indexOf('rdv')!==-1&&!rdvRendered) renderRdv();
   renderHomeSkeleton();
   pollHomeData();
 }
@@ -1640,7 +1889,7 @@ function renderHomeSkeleton(){
     {id:'skip',title:'SkipCall',view:'skip'},
     {id:'probs',title:'Ticket',view:'probs'},
     {id:'rdv',title:'Notion RDV',view:'rdv'}
-  ];
+  ].filter(function(c){ return !SESSION || (NAV_BY_ROLE[SESSION.role]||[]).indexOf(c.view)!==-1; });
   const presets=[
     {p:'yesterday',l:'Hier'},
     {p:'today',l:"Aujourd'hui"},
@@ -2011,7 +2260,7 @@ function scMission(name){
 async function SC(path,params,retry){
   if(retry===undefined)retry=2;
   try{
-    const q=new URLSearchParams({path});
+    const q=new URLSearchParams({path,token:getToken()});
     if(params)Object.keys(params).forEach(k=>{if(params[k]!==''&&params[k]!=null)q.append(k,params[k]);});
     const r=await fetch(SCRIPT_URL+'?'+q.toString());
     if(!r.ok)throw new Error('HTTP '+r.status);
@@ -2211,8 +2460,7 @@ function exportSkipPDF(){
   doc.save('grof-skipcall_'+(mission||'toutes-missions').toLowerCase()+'_'+from+'_'+to+'.pdf');
 }
 
-loadAll().then(loadJours);
-switchView('home');
+bootAuth();
 </script>
 </body>
 </html>
