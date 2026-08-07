@@ -270,7 +270,7 @@ footer a{color:var(--red);text-decoration:none;font-weight:700}
 
       <div class="grid">
         <div class="panel full"><h3>→ Détail par personne</h3><div style="overflow-x:auto"><table id="t-person">
-          <thead><tr><th>Personne</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
+          <thead><tr><th>Personne</th><th>Mission</th><th class="num">Appels</th><th class="num">Décrochés</th><th class="num">Taux décroché</th><th class="num">RDV pris</th><th class="num">Taux RDV</th><th class="num">No show</th><th class="num">Reprog.</th><th class="num">Durée (min)</th></tr></thead>
           <tbody></tbody></table></div></div>
         <div class="panel full"><h3>→ Objectifs de RDV par mission <em>(objectif mensuel · RDV pris sur la période sélectionnée)</em></h3><div style="overflow-x:auto"><table id="t-obj">
           <thead><tr><th>Mission</th><th class="num">Objectif / mois</th><th class="num">RDV pris</th><th class="num">Avancement</th><th style="width:38%">Progression</th></tr></thead>
@@ -1086,15 +1086,31 @@ function render(){
     plugins:{legend:{position:'right',labels:{usePointStyle:true,boxWidth:8}},
     tooltip:{callbacks:{label:c=>c.label+' : '+fmtN(c.parsed)+' appels'}}}}});
 
-  // Tableau — toujours les 6 SDR
+  // Tableau — toujours les 6 SDR, une ligne par personne + mission
   const tb=document.querySelector('#t-person tbody');
-  tb.innerHTML=pNames.map((n,i)=>{const a=pAgg[i];const dim=a.calls===0?' class="dim"':'';
-    return `<tr${dim}><td>${n}</td>
-    <td class="num">${fmtN(a.calls)}</td><td class="num">${fmtN(a.conn)}</td>
-    <td class="num rate-badge">${a.calls?fmtPct(pct(a.conn,a.calls)):'–'}</td>
-    <td class="num">${fmtN(a.rdv)}</td><td class="num rate-badge">${a.conn?fmtPct(pct(a.rdv,a.conn)):'–'}</td>
-    <td class="num">${fmtN(a.noshow)}</td><td class="num">${fmtN(a.reprog)}</td>
-    <td class="num">${fmtN(Math.round(a.dur))}</td></tr>`;}).join('');
+  const personRows=[];
+  pNames.forEach(n=>{
+    const plist=byP[n]||[];
+    if(!plist.length){
+      personRows.push(`<tr class="dim"><td>${n}</td><td>–</td>
+        <td class="num">0</td><td class="num">0</td><td class="num">–</td>
+        <td class="num">0</td><td class="num">–</td>
+        <td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>`);
+      return;
+    }
+    const byMission={};
+    plist.forEach(r=>{(byMission[r.mission]=byMission[r.mission]||[]).push(r);});
+    Object.keys(byMission).sort().forEach(m=>{
+      const a=agg(byMission[m]);
+      personRows.push(`<tr><td>${n}</td><td>${esc(m)}</td>
+        <td class="num">${fmtN(a.calls)}</td><td class="num">${fmtN(a.conn)}</td>
+        <td class="num rate-badge">${a.calls?fmtPct(pct(a.conn,a.calls)):'–'}</td>
+        <td class="num">${fmtN(a.rdv)}</td><td class="num rate-badge">${a.conn?fmtPct(pct(a.rdv,a.conn)):'–'}</td>
+        <td class="num">${fmtN(a.noshow)}</td><td class="num">${fmtN(a.reprog)}</td>
+        <td class="num">${fmtN(Math.round(a.dur))}</td></tr>`);
+    });
+  });
+  tb.innerHTML=personRows.join('');
 
   // Objectifs de RDV par mission
   const rdvByM={};
